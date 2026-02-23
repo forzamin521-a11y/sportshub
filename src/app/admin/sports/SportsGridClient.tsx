@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Sport, SportEvent } from "@/types";
+import { Sport } from "@/types";
 import { SportCard } from "@/components/admin/SportCard";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -9,6 +9,9 @@ import { Search } from "lucide-react";
 interface SportWithStats extends Sport {
     eventCount: number;
     divisionCount: number;
+    configuredEventCount: number;
+    unconfiguredEventCount: number;
+    configCompletionRate: number;
 }
 
 interface SportsGridClientProps {
@@ -59,6 +62,9 @@ export function SportsGridClient({ sports }: SportsGridClientProps) {
                                 sport={sport}
                                 eventCount={sport.eventCount}
                                 divisionCount={sport.divisionCount}
+                                configuredEventCount={sport.configuredEventCount}
+                                unconfiguredEventCount={sport.unconfiguredEventCount}
+                                configCompletionRate={sport.configCompletionRate}
                             />
                         ))}
                     </div>

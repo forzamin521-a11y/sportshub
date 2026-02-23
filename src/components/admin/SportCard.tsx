@@ -30,9 +30,19 @@ interface SportCardProps {
     sport: Sport;
     eventCount: number;
     divisionCount: number;
+    configuredEventCount: number;
+    unconfiguredEventCount: number;
+    configCompletionRate: number;
 }
 
-export function SportCard({ sport, eventCount, divisionCount }: SportCardProps) {
+export function SportCard({
+    sport,
+    eventCount,
+    divisionCount,
+    configuredEventCount,
+    unconfiguredEventCount,
+    configCompletionRate,
+}: SportCardProps) {
     const router = useRouter();
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -135,6 +145,19 @@ export function SportCard({ sport, eventCount, divisionCount }: SportCardProps) 
                                 <Trophy className="h-4 w-4 text-purple-600 mb-1" />
                                 <span className="text-xs text-muted-foreground">세부종목</span>
                                 <span className="text-sm font-bold mt-0.5">{eventCount}개</span>
+                            </div>
+                        </div>
+                        <div className="mt-3 rounded-lg border border-emerald-200/60 bg-emerald-50/60 px-3 py-2">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-emerald-800">순위별 점수 설정</span>
+                                <span className={`font-bold ${unconfiguredEventCount > 0 ? "text-orange-600" : "text-emerald-700"}`}>
+                                    {configuredEventCount}/{eventCount} 완료 ({configCompletionRate}%)
+                                </span>
+                            </div>
+                            <div className="mt-1 text-[11px] text-muted-foreground">
+                                {unconfiguredEventCount > 0
+                                    ? `${unconfiguredEventCount}개 세부종목 미설정`
+                                    : "모든 세부종목 설정 완료"}
                             </div>
                         </div>
                     </CardContent>

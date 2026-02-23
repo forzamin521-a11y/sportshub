@@ -1,23 +1,34 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Sport, SportEvent } from "@/types";
+import { Sport } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Search, Trophy, Target } from "lucide-react";
 import Link from "next/link";
+import { AVAILABLE_YEARS } from "@/lib/constants";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SportWithStats extends Sport {
     eventCount: number;
     divisionCount: number;
+    scoredEventCount: number;
+    unscoredEventCount: number;
+    scoreCompletionRate: number;
 }
 
 interface ScoresGridClientProps {
     sports: SportWithStats[];
+    selectedYear: number;
 }
 
-export function ScoresGridClient({ sports }: ScoresGridClientProps) {
+export function ScoresGridClient({ sports, selectedYear }: ScoresGridClientProps) {
     const [searchTerm, setSearchTerm] = useState("");
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
 
     const filteredSports = useMemo(() => {
         if (!searchTerm) return sports;
@@ -29,17 +40,40 @@ export function ScoresGridClient({ sports }: ScoresGridClientProps) {
         );
     }, [sports, searchTerm]);
 
+    const handleYearChange = (year: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("year", year);
+        router.push(`${pathname}?${params.toString()}`);
+    };
+
     return (
         <div className="space-y-4">
             {/* 검색 */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="종목명 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 rounded-xl"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="종목명 검색..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 rounded-xl"
+                    />
+                </div>
+                <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">통계 기준 연도</Label>
+                    <Select value={String(selectedYear)} onValueChange={handleYearChange}>
+                        <SelectTrigger className="rounded-xl">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {AVAILABLE_YEARS.map((year) => (
+                                <SelectItem key={year} value={String(year)}>
+                                    {year}년
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             {/* 종목 카드 그리드 */}
@@ -85,6 +119,19 @@ export function ScoresGridClient({ sports }: ScoresGridClientProps) {
                                                 <Trophy className="h-4 w-4 text-purple-600 mb-1" />
                                                 <span className="text-xs text-muted-foreground">세부종목</span>
                                                 <span className="text-sm font-bold mt-0.5">{sport.eventCount}개</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 rounded-lg border border-sky-200/60 bg-sky-50/60 px-3 py-2">
+                                            <div className="flex items-center justify-between text-xs">
+                                                <span className="font-semibold text-sky-800">점수 입력 현황</span>
+                                                <span className={`font-bold ${sport.unscoredEventCount > 0 ? "text-orange-600" : "text-sky-700"}`}>
+                                                    {sport.scoredEventCount}/{sport.eventCount} 완료 ({sport.scoreCompletionRate}%)
+                                                </span>
+                                            </div>
+                                            <div className="mt-1 text-[11px] text-muted-foreground">
+                                                {sport.unscoredEventCount > 0
+                                                    ? `${sport.unscoredEventCount}개 세부종목 미입력`
+                                                    : "모든 세부종목 점수 입력 완료"}
                                             </div>
                                         </div>
                                     </CardContent>
