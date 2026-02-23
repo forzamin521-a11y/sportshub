@@ -33,6 +33,7 @@ interface SportCardProps {
     configuredEventCount: number;
     unconfiguredEventCount: number;
     configCompletionRate: number;
+    selectedYear: number;
 }
 
 export function SportCard({
@@ -42,6 +43,7 @@ export function SportCard({
     configuredEventCount,
     unconfiguredEventCount,
     configCompletionRate,
+    selectedYear,
 }: SportCardProps) {
     const router = useRouter();
     const [showEditDialog, setShowEditDialog] = useState(false);
@@ -74,7 +76,7 @@ export function SportCard({
     return (
         <>
             <Card className="glass-card hover:shadow-lg transition-all duration-300 group relative">
-                <Link href={`/admin/sports/${sport.id}`} className="block">
+                <Link href={`/admin/sports/${sport.id}?year=${selectedYear}`} className="block" prefetch>
                     <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                             <div className="flex-1">

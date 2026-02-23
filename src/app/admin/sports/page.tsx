@@ -1,7 +1,7 @@
 import { getSheetData } from "@/lib/google-sheets";
-import { SHEET_NAMES } from "@/lib/constants";
+import { AVAILABLE_YEARS, CURRENT_YEAR, SHEET_NAMES } from "@/lib/constants";
 import { CreateSportDialog } from "@/components/admin/CreateSportDialog";
-import { RankScoreConfig, Sport, SportEvent } from "@/types";
+import { Sport, SportEvent } from "@/types";
 import { SportsGridClient } from "./SportsGridClient";
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,7 @@ interface SportWithStats extends Sport {
     configCompletionRate: number;
 }
 
-async function getData(): Promise<SportWithStats[]> {
+async function getData(selectedYear: number): Promise<SportWithStats[]> {
     const [sportsData, eventsData, rankScoresData] = await Promise.all([
         getSheetData(SHEET_NAMES.SPORTS),
         getSheetData(SHEET_NAMES.SPORT_EVENTS).catch(() => []),
@@ -29,14 +29,16 @@ async function getData(): Promise<SportWithStats[]> {
         max_score: row.max_score ? Number(row.max_score) : undefined,
     }));
 
-    const rankScores: RankScoreConfig[] = rankScoresData.map((row) => ({
-        id: String(row.id),
-        sport_event_id: String(row.sport_event_id),
-        rank: String(row.rank),
-        rank_label: row.rank_label ? String(row.rank_label) : String(row.rank),
-        acquired_score: Number(row.acquired_score || 0),
-        medal_score: Number(row.medal_score || 0),
-    }));
+    const configuredEventIds = rankScoresData
+        .filter((row: any) => {
+            if (row.year == null || row.year === "") return true;
+            return Number(row.year) === selectedYear;
+        })
+        .reduce((acc, row: any) => {
+            const eventId = String(row.sport_event_id || "");
+            if (eventId) acc.add(eventId);
+            return acc;
+        }, new Set<string>());
 
     // Group events by sport_id and calculate counts
     const eventsBySport = events.reduce((acc, event) => {
@@ -46,8 +48,6 @@ async function getData(): Promise<SportWithStats[]> {
         acc[event.sport_id].push(event);
         return acc;
     }, {} as Record<string, SportEvent[]>);
-
-    const configuredEventIds = new Set(rankScores.map((rs) => rs.sport_event_id));
 
     const sports: SportWithStats[] = sportsData.map((row) => {
         const sportId = String(row.id);
@@ -81,8 +81,17 @@ async function getData(): Promise<SportWithStats[]> {
     return sports;
 }
 
-export default async function AdminSportsPage() {
-    const sports = await getData();
+export default async function AdminSportsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+    const params = await searchParams;
+    const queryYear = Number(params.year);
+    const selectedYear = AVAILABLE_YEARS.includes(queryYear as (typeof AVAILABLE_YEARS)[number])
+        ? queryYear
+        : CURRENT_YEAR;
+    const sports = await getData(selectedYear);
 
     return (
         <div className="space-y-5 animate-fade-in-up">
@@ -90,13 +99,13 @@ export default async function AdminSportsPage() {
                 <div>
                     <h2 className="text-2xl font-bold gradient-text">종목 관리</h2>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                        종목을 선택하여 확정점수, 순위별 점수, 신기록 가산을 설정합니다.
+                        {selectedYear}년 기준 종목을 선택하여 확정점수, 순위별 점수, 신기록 가산을 설정합니다.
                     </p>
                 </div>
                 <CreateSportDialog />
             </div>
 
-            <SportsGridClient sports={sports} />
+            <SportsGridClient sports={sports} selectedYear={selectedYear} />
         </div>
     );
 }

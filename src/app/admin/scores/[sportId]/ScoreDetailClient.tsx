@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Sport, SportEvent, Score, Region } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronDown, ChevronRight, Trophy, Target, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { RegionScoresDialog } from "./RegionScoresDialog";
-import { CURRENT_YEAR } from "@/lib/constants";
 
 interface ScoreDetailClientProps {
     sport: Sport;
     events: SportEvent[];
     initialScores: Score[];
     regions: Region[];
+    selectedYear: number;
 }
 
 export function ScoreDetailClient({
@@ -21,6 +21,7 @@ export function ScoreDetailClient({
     events,
     initialScores,
     regions,
+    selectedYear,
 }: ScoreDetailClientProps) {
     const [expandedDivisions, setExpandedDivisions] = useState<Set<string>>(new Set());
     const [selectedEvent, setSelectedEvent] = useState<SportEvent | null>(null);
@@ -31,14 +32,36 @@ export function ScoreDetailClient({
         setScores(initialScores);
     }, [initialScores]);
 
+    const scoresByEventId = useMemo(() => {
+        return scores.reduce((acc, score) => {
+            const eventId = score.sport_event_id;
+            if (!eventId) return acc;
+            if (!acc[eventId]) {
+                acc[eventId] = [];
+            }
+            acc[eventId].push(score);
+            return acc;
+        }, {} as Record<string, Score[]>);
+    }, [scores]);
+
+    const eventScoreCount = useMemo(() => {
+        const countByEventId = new Map<string, number>();
+        Object.entries(scoresByEventId).forEach(([eventId, eventScores]) => {
+            countByEventId.set(eventId, eventScores.length);
+        });
+        return countByEventId;
+    }, [scoresByEventId]);
+
     // Group events by division
-    const eventsByDivision = events.reduce((acc, event) => {
-        if (!acc[event.division]) {
-            acc[event.division] = [];
-        }
-        acc[event.division].push(event);
-        return acc;
-    }, {} as Record<string, SportEvent[]>);
+    const eventsByDivision = useMemo(() => {
+        return events.reduce((acc, event) => {
+            if (!acc[event.division]) {
+                acc[event.division] = [];
+            }
+            acc[event.division].push(event);
+            return acc;
+        }, {} as Record<string, SportEvent[]>);
+    }, [events]);
 
     const divisions = Object.keys(eventsByDivision).sort();
 
@@ -52,9 +75,7 @@ export function ScoreDetailClient({
         setExpandedDivisions(newExpanded);
     };
 
-    const getEventScoreCount = (eventId: string) => {
-        return scores.filter(s => s.sport_event_id === eventId).length;
-    };
+    const getEventScoreCount = (eventId: string) => eventScoreCount.get(eventId) ?? 0;
 
     const handleEventClick = (event: SportEvent) => {
         setSelectedEvent(event);
@@ -64,7 +85,7 @@ export function ScoreDetailClient({
         <div className="space-y-5">
             {/* Header */}
             <div className="flex items-center gap-4">
-                <Link href="/admin/scores">
+                <Link href={`/admin/scores?year=${selectedYear}`}>
                     <Button variant="ghost" size="icon" className="rounded-full">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
@@ -91,7 +112,7 @@ export function ScoreDetailClient({
                 <div className="mb-4">
                     <h3 className="font-semibold">세부종목별 점수 입력</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                        세부종목을 선택하면 모든 시/도의 점수를 입력하고 수정할 수 있습니다.
+                        {selectedYear}년 기준으로 세부종목별 시/도 점수를 입력하고 수정할 수 있습니다.
                     </p>
                 </div>
 
@@ -99,7 +120,7 @@ export function ScoreDetailClient({
                     {divisions.map(division => {
                         const divisionEvents = eventsByDivision[division] || [];
                         const isExpanded = expandedDivisions.has(division);
-                        const totalScores = divisionEvents.reduce((sum, e) => sum + getEventScoreCount(e.id), 0);
+                        const totalScores = divisionEvents.reduce((sum, e) => sum + (eventScoreCount.get(e.id) ?? 0), 0);
 
                         return (
                             <div key={division} className="border rounded-lg overflow-hidden">
@@ -171,13 +192,14 @@ export function ScoreDetailClient({
                     event={selectedEvent}
                     sport={sport}
                     regions={regions}
-                    initialScores={scores.filter(s => s.sport_event_id === selectedEvent.id)}
+                    initialScores={scoresByEventId[selectedEvent.id] ?? []}
                     allScores={scores}
                     open={!!selectedEvent}
                     onOpenChange={(open) => !open && setSelectedEvent(null)}
                     onScoresUpdate={(allSportScores, updatedYear) => {
-                        const otherYears = scores.filter((s) => (s.year ?? CURRENT_YEAR) !== updatedYear);
-                        setScores([...otherYears, ...allSportScores]);
+                        if (updatedYear === selectedYear) {
+                            setScores(allSportScores);
+                        }
                     }}
                 />
             )}

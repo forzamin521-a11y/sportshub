@@ -56,17 +56,31 @@ export function SportRankScoreTab({
         setExpandedDivisions(newExpanded);
     };
 
+    const rankScoresByEventId = useMemo(() => {
+        const grouped = rankScores.reduce((acc, score) => {
+            if (!acc[score.sport_event_id]) {
+                acc[score.sport_event_id] = [];
+            }
+            acc[score.sport_event_id].push(score);
+            return acc;
+        }, {} as Record<string, RankScoreConfig[]>);
+
+        Object.values(grouped).forEach((list) => {
+            list.sort((a, b) => rankSortValue(a.rank) - rankSortValue(b.rank));
+        });
+
+        return grouped;
+    }, [rankScores]);
+
+    const configuredEventIds = useMemo(() => {
+        return new Set(Object.keys(rankScoresByEventId));
+    }, [rankScoresByEventId]);
+
     // Get rank scores for specific event
-    const getEventRankScores = (eventId: string) => {
-        return rankScores
-            .filter(rs => rs.sport_event_id === eventId)
-            .sort((a, b) => rankSortValue(a.rank) - rankSortValue(b.rank));
-    };
+    const getEventRankScores = (eventId: string) => rankScoresByEventId[eventId] ?? [];
 
     // Check if event has rank scores
-    const isEventConfigured = (eventId: string) => {
-        return rankScores.some(rs => rs.sport_event_id === eventId);
-    };
+    const isEventConfigured = (eventId: string) => configuredEventIds.has(eventId);
 
     // Initialize bulk scores
     const initBulkScores = (maxRank: number) => {
@@ -326,7 +340,7 @@ export function SportRankScoreTab({
         }
     };
 
-    const configuredCount = events.filter(e => isEventConfigured(e.id)).length;
+    const configuredCount = events.filter(e => configuredEventIds.has(e.id)).length;
     const unconfiguredCount = events.length - configuredCount;
 
     return (

@@ -1,5 +1,5 @@
 import { getSheetData } from "@/lib/google-sheets";
-import { SHEET_NAMES } from "@/lib/constants";
+import { AVAILABLE_YEARS, CURRENT_YEAR, SHEET_NAMES } from "@/lib/constants";
 import { Sport, SportEvent, Score, Region } from "@/types";
 import { parseScore } from "@/lib/parse-scores";
 import { ScoreDetailClient } from "./ScoreDetailClient";
@@ -11,9 +11,10 @@ interface PageProps {
     params: Promise<{
         sportId: string;
     }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-async function getSportScoreData(sportId: string) {
+async function getSportScoreData(sportId: string, selectedYear: number) {
     const [sportsData, eventsData, scoresData, regionsData] = await Promise.all([
         getSheetData(SHEET_NAMES.SPORTS),
         getSheetData(SHEET_NAMES.SPORT_EVENTS).catch(() => []),
@@ -53,7 +54,8 @@ async function getSportScoreData(sportId: string) {
             eventIds.has(String(row.sport_event_id)) ||
             String(row.sport_id) === sportId
         )
-        .map((row: any) => parseScore(row));
+        .map((row: any) => parseScore(row))
+        .filter((score) => (score.year ?? CURRENT_YEAR) === selectedYear);
 
     // Get regions
     const regions: Region[] = regionsData.map(row => ({
@@ -71,9 +73,14 @@ async function getSportScoreData(sportId: string) {
     };
 }
 
-export default async function ScoreDetailPage({ params }: PageProps) {
+export default async function ScoreDetailPage({ params, searchParams }: PageProps) {
+    const query = await searchParams;
     const { sportId } = await params;
-    const data = await getSportScoreData(sportId);
+    const queryYear = Number(query.year);
+    const selectedYear = AVAILABLE_YEARS.includes(queryYear as (typeof AVAILABLE_YEARS)[number])
+        ? queryYear
+        : CURRENT_YEAR;
+    const data = await getSportScoreData(sportId, selectedYear);
 
     if (!data) {
         notFound();
@@ -86,6 +93,7 @@ export default async function ScoreDetailPage({ params }: PageProps) {
                 events={data.events}
                 initialScores={data.scores}
                 regions={data.regions}
+                selectedYear={selectedYear}
             />
         </div>
     );

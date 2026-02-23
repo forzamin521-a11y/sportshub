@@ -89,7 +89,7 @@ export function ScoresGridClient({ sports, selectedYear }: ScoresGridClientProps
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredSports.map((sport) => (
-                            <Link key={sport.id} href={`/admin/scores/${sport.id}`}>
+                            <Link key={sport.id} href={`/admin/scores/${sport.id}?year=${selectedYear}`} prefetch>
                                 <Card className="glass-card hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 group">
                                     <CardHeader className="pb-3">
                                         <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">

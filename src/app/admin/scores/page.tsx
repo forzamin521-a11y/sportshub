@@ -1,8 +1,7 @@
 import { getSheetData } from "@/lib/google-sheets";
 import { AVAILABLE_YEARS, CURRENT_YEAR, SHEET_NAMES } from "@/lib/constants";
-import { Score, Sport, SportEvent } from "@/types";
+import { Sport, SportEvent } from "@/types";
 import { ScoresGridClient } from "./ScoresGridClient";
-import { parseScore } from "@/lib/parse-scores";
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +28,6 @@ async function getData(targetYear: number): Promise<SportWithStats[]> {
         max_score: row.max_score ? Number(row.max_score) : undefined,
     }));
 
-    const scores: Score[] = scoresData.map((row) => parseScore(row));
-
     // Group events by sport_id and calculate counts
     const eventsBySport = events.reduce((acc, event) => {
         if (!acc[event.sport_id]) {
@@ -40,16 +37,22 @@ async function getData(targetYear: number): Promise<SportWithStats[]> {
         return acc;
     }, {} as Record<string, SportEvent[]>);
 
-    const scoredEventIdsBySport = scores
-        .filter((score) => (score.year ?? CURRENT_YEAR) === targetYear && !!score.sport_event_id)
-        .reduce((acc, score) => {
-            const sportId = score.sport_id;
-            if (!acc[sportId]) {
-                acc[sportId] = new Set<string>();
-            }
-            acc[sportId].add(String(score.sport_event_id));
-            return acc;
-        }, {} as Record<string, Set<string>>);
+    const scoredEventIdsBySport = scoresData.reduce((acc, row) => {
+        const year = row.year ? Number(row.year) : CURRENT_YEAR;
+        if (year !== targetYear) return acc;
+
+        const sportEventId = String(row.sport_event_id || "");
+        if (!sportEventId) return acc;
+
+        const sportId = String(row.sport_id || "");
+        if (!sportId) return acc;
+
+        if (!acc[sportId]) {
+            acc[sportId] = new Set<string>();
+        }
+        acc[sportId].add(sportEventId);
+        return acc;
+    }, {} as Record<string, Set<string>>);
 
     const sports: SportWithStats[] = sportsData.map((row) => {
         const sportId = String(row.id);

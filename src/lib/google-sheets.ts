@@ -10,7 +10,7 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID!;
-const CACHE_TTL_MS = 15000;
+const CACHE_TTL_MS = 60000;
 
 export interface SheetRow {
     [key: string]: string | number | boolean;

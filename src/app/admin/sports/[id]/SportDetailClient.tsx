@@ -15,12 +15,14 @@ interface SportDetailClientProps {
     sport: Sport;
     events: SportEvent[];
     initialRankScores: RankScoreConfig[];
+    selectedYear: number;
 }
 
 export function SportDetailClient({
     sport,
     events,
     initialRankScores,
+    selectedYear,
 }: SportDetailClientProps) {
     const router = useRouter();
     const [maxScore, setMaxScore] = useState(sport.max_score);
@@ -64,7 +66,7 @@ export function SportDetailClient({
         <div className="space-y-5">
             {/* Header */}
             <div className="flex items-center gap-4">
-                <Link href="/admin/sports">
+                <Link href={`/admin/sports?year=${selectedYear}`}>
                     <Button variant="ghost" size="icon" className="rounded-full">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
@@ -80,6 +82,8 @@ export function SportDetailClient({
                     <span>{events.length}개 세부종목</span>
                     <span className="mx-2">•</span>
                     <span>{divisions.length}개 종별</span>
+                    <span className="mx-2">•</span>
+                    <span>{selectedYear}년</span>
                 </div>
             </div>
 

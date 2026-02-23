@@ -1,5 +1,5 @@
 import { getSheetData } from "@/lib/google-sheets";
-import { SHEET_NAMES } from "@/lib/constants";
+import { AVAILABLE_YEARS, CURRENT_YEAR, SHEET_NAMES } from "@/lib/constants";
 import { Sport, SportEvent, RankScoreConfig } from "@/types";
 import { SportDetailClient } from "./SportDetailClient";
 import { notFound } from "next/navigation";
@@ -11,9 +11,10 @@ interface PageProps {
     params: Promise<{
         id: string;
     }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-async function getSportData(sportId: string) {
+async function getSportData(sportId: string, selectedYear: number) {
     const [sportsData, eventsData, rankScoresData] = await Promise.all([
         getSheetData(SHEET_NAMES.SPORTS),
         getSheetData(SHEET_NAMES.SPORT_EVENTS).catch(() => []),
@@ -48,6 +49,10 @@ async function getSportData(sportId: string) {
     // Get rank scores for this sport's events
     const eventIds = new Set(events.map(e => e.id));
     const rankScores: RankScoreConfig[] = rankScoresData
+        .filter((row: any) => {
+            if (row.year == null || row.year === "") return true;
+            return Number(row.year) === selectedYear;
+        })
         .filter((row: any) => eventIds.has(String(row.sport_event_id)))
         .map((row: any) => ({
             id: String(row.id),
@@ -66,9 +71,14 @@ async function getSportData(sportId: string) {
     };
 }
 
-export default async function SportDetailPage({ params }: PageProps) {
+export default async function SportDetailPage({ params, searchParams }: PageProps) {
     const { id } = await params;
-    const data = await getSportData(id);
+    const query = await searchParams;
+    const queryYear = Number(query.year);
+    const selectedYear = AVAILABLE_YEARS.includes(queryYear as (typeof AVAILABLE_YEARS)[number])
+        ? queryYear
+        : CURRENT_YEAR;
+    const data = await getSportData(id, selectedYear);
 
     if (!data) {
         notFound();
@@ -80,6 +90,7 @@ export default async function SportDetailPage({ params }: PageProps) {
                 sport={data.sport}
                 events={data.events}
                 initialRankScores={data.rankScores}
+                selectedYear={selectedYear}
             />
         </div>
     );
