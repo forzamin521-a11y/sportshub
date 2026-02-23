@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatRankLabel, rankSortValue } from "@/lib/rank-utils";
+import { requestJson, toUserErrorMessage } from "@/lib/api-client";
 
 interface RankScoreConfigCardProps {
     initialConfigs: RankScoreConfig[];
@@ -86,11 +87,8 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
     useEffect(() => {
         async function fetchSportEvents() {
             try {
-                const res = await fetch("/api/sport-events");
-                if (res.ok) {
-                    const data = await res.json();
-                    setSportEvents(data.data || []);
-                }
+                const data = await requestJson<{ data: SportEvent[] }>("/api/sport-events");
+                setSportEvents(data.data || []);
             } catch (error) {
                 console.error("Failed to fetch sport events:", error);
             }
@@ -207,7 +205,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             setAddMedalScore(0);
         } catch (error) {
             console.error(error);
-            const message = error instanceof Error ? error.message : "추가 중 오류가 발생했습니다.";
+            const message = toUserErrorMessage(error, "추가 중 오류가 발생했습니다.");
             toast.error(message);
         } finally {
             setSaving(false);
@@ -249,7 +247,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             setEditingId(null);
         } catch (error) {
             console.error(error);
-            const message = error instanceof Error ? error.message : "수정 중 오류가 발생했습니다.";
+            const message = toUserErrorMessage(error, "수정 중 오류가 발생했습니다.");
             toast.error(message);
         } finally {
             setSaving(false);
@@ -277,7 +275,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             setDeleteId(null);
         } catch (error) {
             console.error(error);
-            const message = error instanceof Error ? error.message : "삭제 중 오류가 발생했습니다.";
+            const message = toUserErrorMessage(error, "삭제 중 오류가 발생했습니다.");
             toast.error(message);
         } finally {
             setSaving(false);
@@ -437,7 +435,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             router.refresh();
         } catch (error) {
             console.error(error);
-            toast.error(error instanceof Error ? error.message : "등록 중 오류가 발생했습니다.");
+            toast.error(toUserErrorMessage(error, "등록 중 오류가 발생했습니다."));
         } finally {
             setSaving(false);
         }

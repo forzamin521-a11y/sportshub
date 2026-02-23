@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Select,
@@ -14,6 +14,7 @@ import { Region, Score, Sport } from "@/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Loader2 } from "lucide-react";
 import { GYEONGGI_REGION_ID, DIVISION_LIST } from "@/lib/constants";
+import { requestJson } from "@/lib/api-client";
 
 interface ScoreWithDetails extends Score {
     region_name: string;
@@ -25,68 +26,46 @@ export default function SportsAnalysisPage() {
     const [selectedCategory, setSelectedCategory] = useState<string>("전체");
     const [selectedSportId, setSelectedSportId] = useState<string>("");
     const [selectedDivision, setSelectedDivision] = useState<string>("전체");
-    const [scores, setScores] = useState<ScoreWithDetails[]>([]);
+    const [allScores, setAllScores] = useState<Score[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // 종목 목록 가져오기
     useEffect(() => {
-        async function fetchSports() {
-            try {
-                const res = await fetch("/api/sports");
-                const data = await res.json();
-                setSports(data.data || []);
-                if (data.data && data.data.length > 0) {
-                    setSelectedSportId(data.data[0].id);
-                }
-            } catch (error) {
-                console.error("Failed to fetch sports:", error);
-            }
-        }
-        fetchSports();
-    }, []);
-
-    // 시도 목록 가져오기
-    useEffect(() => {
-        async function fetchRegions() {
-            try {
-                const res = await fetch("/api/regions");
-                const data = await res.json();
-                setRegions(data.data || []);
-            } catch (error) {
-                console.error("Failed to fetch regions:", error);
-            }
-        }
-        fetchRegions();
-    }, []);
-
-    // 선택한 종목의 점수 데이터 가져오기
-    useEffect(() => {
-        if (!selectedSportId) return;
-
-        async function fetchScores() {
+        async function fetchData() {
             setLoading(true);
             try {
-                const res = await fetch(`/api/scores?sport_id=${selectedSportId}`);
-                const data = await res.json();
+                const data = await requestJson<{
+                    data: {
+                        regions: Region[];
+                        sports: Sport[];
+                        scores: Score[];
+                    };
+                }>("/api/admin/dashboard-data");
 
-                // 시도명 매핑
-                const scoresWithNames = (data.data || []).map((score: Score) => ({
-                    ...score,
-                    region_name: regions.find(r => r.id === score.region_id)?.name || score.region_id,
-                }));
-
-                setScores(scoresWithNames);
+                const fetchedSports = data.data.sports || [];
+                setSports(fetchedSports);
+                setRegions(data.data.regions || []);
+                setAllScores(data.data.scores || []);
+                if (fetchedSports.length > 0) {
+                    setSelectedSportId(fetchedSports[0].id);
+                }
             } catch (error) {
-                console.error("Failed to fetch scores:", error);
+                console.error("Failed to fetch dashboard data:", error);
             } finally {
                 setLoading(false);
             }
         }
+        fetchData();
+    }, []);
 
-        if (regions.length > 0) {
-            fetchScores();
-        }
-    }, [selectedSportId, regions]);
+    const scoresForSport: ScoreWithDetails[] = useMemo(() => {
+        if (!selectedSportId) return [];
+        return allScores
+            .filter((score) => score.sport_id === selectedSportId)
+            .map((score) => ({
+                ...score,
+                region_name: regions.find((r) => r.id === score.region_id)?.name || score.region_id,
+            }));
+    }, [allScores, regions, selectedSportId]);
 
     // 카테고리별로 종목 필터링
     const filteredSports = selectedCategory === "전체"
@@ -97,8 +76,8 @@ export default function SportsAnalysisPage() {
 
     // 종별 필터링
     const filteredScores = selectedDivision === "전체"
-        ? scores
-        : scores.filter(s => s.division === selectedDivision);
+        ? scoresForSport
+        : scoresForSport.filter(s => s.division === selectedDivision);
 
     // 차트 데이터 (상위 10개 시도)
     const chartData = filteredScores
@@ -256,7 +235,7 @@ export default function SportsAnalysisPage() {
                             <div className="flex items-center justify-center h-[200px]">
                                 <Loader2 className="h-8 w-8 animate-spin" />
                             </div>
-                        ) : scores.length > 0 ? (
+                        ) : scoresForSport.length > 0 ? (
                             <div className="rounded-md border">
                                 <table className="w-full text-sm">
                                     <thead>

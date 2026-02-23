@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { rankSortValue } from "@/lib/rank-utils";
+import { requestJson, toUserErrorMessage } from "@/lib/api-client";
 
 interface RegionScoresDialogProps {
     event: SportEvent;
@@ -121,20 +122,12 @@ export function RegionScoresDialog({
     useEffect(() => {
         async function fetchData() {
             try {
-                const [recordTypesRes, rankScoresRes] = await Promise.all([
-                    fetch("/api/record-types"),
-                    fetch("/api/configs/rank-score"),
+                const [recordTypesData, rankScoresData] = await Promise.all([
+                    requestJson<{ data: RecordType[] }>("/api/record-types"),
+                    requestJson<{ data: RankScoreConfig[] }>("/api/configs/rank-score"),
                 ]);
-
-                if (recordTypesRes.ok) {
-                    const data = await recordTypesRes.json();
-                    setRecordTypes(data.data || []);
-                }
-
-                if (rankScoresRes.ok) {
-                    const data = await rankScoresRes.json();
-                    setRankScores(data.data || []);
-                }
+                setRecordTypes(recordTypesData.data || []);
+                setRankScores(rankScoresData.data || []);
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }
@@ -379,7 +372,13 @@ export function RegionScoresDialog({
                 })
                 .filter(Boolean);
 
-            const res = await fetch("/api/scores/save-and-recalculate", {
+            const result = await requestJson<{
+                data: {
+                    scores: Score[];
+                    alphaScore: number;
+                    expectedAlphaScore: number;
+                };
+            }>("/api/scores/save-and-recalculate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -392,13 +391,6 @@ export function RegionScoresDialog({
                     event_scores: eventScoresPayload,
                 }),
             });
-
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || "저장 실패");
-            }
-
-            const result = await res.json();
 
             onScoresUpdate(result.data.scores, selectedYear);
 
@@ -414,12 +406,7 @@ export function RegionScoresDialog({
             onOpenChange(false);
         } catch (error) {
             console.error(error);
-            const message = error instanceof Error ? error.message : String(error);
-            if (message.includes("한도") || message.includes("quota")) {
-                toast.error("Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.");
-            } else {
-                toast.error(message || "저장 중 오류가 발생했습니다.");
-            }
+            toast.error(toUserErrorMessage(error, "저장 중 오류가 발생했습니다."));
         } finally {
             setSaving(false);
         }

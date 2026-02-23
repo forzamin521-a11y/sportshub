@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { requestJson } from "@/lib/api-client";
 
 export default function ComparePage() {
     const [regions, setRegions] = useState<Region[]>([]);
@@ -28,20 +29,18 @@ export default function ComparePage() {
         async function fetchData() {
             setLoading(true);
             try {
-                const [regionsRes, sportsRes, scoresRes] = await Promise.all([
-                    fetch("/api/regions"),
-                    fetch("/api/sports"),
-                    fetch("/api/scores"),
-                ]);
+                const data = await requestJson<{
+                    data: {
+                        regions: Region[];
+                        sports: Sport[];
+                        scores: Score[];
+                    };
+                }>("/api/admin/dashboard-data");
 
-                const regionsData = await regionsRes.json();
-                const sportsData = await sportsRes.json();
-                const scoresData = await scoresRes.json();
-
-                const fetchedRegions = regionsData.data || [];
+                const fetchedRegions = data.data.regions || [];
                 setRegions(fetchedRegions);
-                setSports(sportsData.data || []);
-                setScores(scoresData.data || []);
+                setSports(data.data.sports || []);
+                setScores(data.data.scores || []);
 
                 // 기본적으로 첫 2개 시도 선택
                 if (fetchedRegions.length >= 2) {

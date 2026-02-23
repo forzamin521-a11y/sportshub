@@ -6,6 +6,7 @@ import { Region, Score, Sport } from "@/types";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { Loader2 } from "lucide-react";
 import { GYEONGGI_REGION_ID, DIVISION_LIST } from "@/lib/constants";
+import { requestJson } from "@/lib/api-client";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658'];
 
@@ -19,19 +20,17 @@ export default function CategoriesAnalysisPage() {
         async function fetchData() {
             setLoading(true);
             try {
-                const [regionsRes, sportsRes, scoresRes] = await Promise.all([
-                    fetch("/api/regions"),
-                    fetch("/api/sports"),
-                    fetch("/api/scores"),
-                ]);
+                const data = await requestJson<{
+                    data: {
+                        regions: Region[];
+                        sports: Sport[];
+                        scores: Score[];
+                    };
+                }>("/api/admin/dashboard-data");
 
-                const regionsData = await regionsRes.json();
-                const sportsData = await sportsRes.json();
-                const scoresData = await scoresRes.json();
-
-                setRegions(regionsData.data || []);
-                setSports(sportsData.data || []);
-                setScores(scoresData.data || []);
+                setRegions(data.data.regions || []);
+                setSports(data.data.sports || []);
+                setScores(data.data.scores || []);
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             } finally {

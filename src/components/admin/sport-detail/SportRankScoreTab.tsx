@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { formatRankLabel, rankSortValue } from "@/lib/rank-utils";
+import { toUserErrorMessage } from "@/lib/api-client";
 
 interface SportRankScoreTabProps {
     sport: Sport;
@@ -319,7 +320,7 @@ export function SportRankScoreTab({
             router.refresh();
         } catch (error) {
             console.error(error);
-            toast.error(error instanceof Error ? error.message : "등록 중 오류가 발생했습니다.");
+            toast.error(toUserErrorMessage(error, "등록 중 오류가 발생했습니다."));
         } finally {
             setSaving(false);
         }

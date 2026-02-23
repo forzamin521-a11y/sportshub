@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Select,
@@ -13,6 +13,7 @@ import { Region, Score, Sport } from "@/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Loader2 } from "lucide-react";
 import { formatMedalCount } from "@/lib/number-format";
+import { requestJson } from "@/lib/api-client";
 
 interface ScoreWithDetails extends Score {
     sport_name: string;
@@ -21,69 +22,47 @@ interface ScoreWithDetails extends Score {
 export default function RegionsAnalysisPage() {
     const [regions, setRegions] = useState<Region[]>([]);
     const [selectedRegionId, setSelectedRegionId] = useState<string>("");
-    const [scores, setScores] = useState<ScoreWithDetails[]>([]);
     const [sports, setSports] = useState<Sport[]>([]);
+    const [allScores, setAllScores] = useState<Score[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // 시도 목록 가져오기
     useEffect(() => {
-        async function fetchRegions() {
-            try {
-                const res = await fetch("/api/regions");
-                const data = await res.json();
-                setRegions(data.data || []);
-                if (data.data && data.data.length > 0) {
-                    setSelectedRegionId(data.data[0].id);
-                }
-            } catch (error) {
-                console.error("Failed to fetch regions:", error);
-            }
-        }
-        fetchRegions();
-    }, []);
-
-    // 종목 목록 가져오기
-    useEffect(() => {
-        async function fetchSports() {
-            try {
-                const res = await fetch("/api/sports");
-                const data = await res.json();
-                setSports(data.data || []);
-            } catch (error) {
-                console.error("Failed to fetch sports:", error);
-            }
-        }
-        fetchSports();
-    }, []);
-
-    // 선택한 시도의 점수 데이터 가져오기
-    useEffect(() => {
-        if (!selectedRegionId) return;
-
-        async function fetchScores() {
+        async function fetchData() {
             setLoading(true);
             try {
-                const res = await fetch(`/api/scores?region_id=${selectedRegionId}`);
-                const data = await res.json();
+                const data = await requestJson<{
+                    data: {
+                        regions: Region[];
+                        sports: Sport[];
+                        scores: Score[];
+                    };
+                }>("/api/admin/dashboard-data");
 
-                // 종목명 매핑
-                const scoresWithNames = (data.data || []).map((score: Score) => ({
-                    ...score,
-                    sport_name: sports.find(s => s.id === score.sport_id)?.name || score.sport_id,
-                }));
-
-                setScores(scoresWithNames);
+                const fetchedRegions = data.data.regions || [];
+                setRegions(fetchedRegions);
+                setSports(data.data.sports || []);
+                setAllScores(data.data.scores || []);
+                if (fetchedRegions.length > 0) {
+                    setSelectedRegionId(fetchedRegions[0].id);
+                }
             } catch (error) {
-                console.error("Failed to fetch scores:", error);
+                console.error("Failed to fetch dashboard data:", error);
             } finally {
                 setLoading(false);
             }
         }
+        fetchData();
+    }, []);
 
-        if (sports.length > 0) {
-            fetchScores();
-        }
-    }, [selectedRegionId, sports]);
+    const scores: ScoreWithDetails[] = useMemo(() => {
+        if (!selectedRegionId) return [];
+        return allScores
+            .filter((score) => score.region_id === selectedRegionId)
+            .map((score) => ({
+                ...score,
+                sport_name: sports.find((s) => s.id === score.sport_id)?.name || score.sport_id,
+            }));
+    }, [allScores, selectedRegionId, sports]);
 
     const selectedRegion = regions.find(r => r.id === selectedRegionId);
 

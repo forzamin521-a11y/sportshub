@@ -10,8 +10,15 @@ function isQuotaError(error: unknown): boolean {
     return message.includes('quota') || message.includes('rate limit') || message.includes('한도') || message.includes('429');
 }
 
+const rankBulkLocks = (globalThis as typeof globalThis & {
+    __rankBulkLocks?: Set<string>;
+}).__rankBulkLocks || new Set<string>();
+
+(globalThis as typeof globalThis & { __rankBulkLocks?: Set<string> }).__rankBulkLocks = rankBulkLocks;
+
 // POST: Bulk add rank score configs (Admin only)
 export async function POST(request: Request) {
+    let lockKey: string | null = null;
     try {
         // Auth check
         const session = await getServerSession(authOptions);
@@ -21,6 +28,14 @@ export async function POST(request: Request) {
 
         const body = await request.json();
         const { sport_event_id, scores } = body;
+        lockKey = String(sport_event_id || "");
+        if (lockKey && rankBulkLocks.has(lockKey)) {
+            return NextResponse.json(
+                { error: "해당 세부종목의 순위별 점수 저장이 진행 중입니다. 잠시 후 다시 시도해주세요." },
+                { status: 409 }
+            );
+        }
+        if (lockKey) rankBulkLocks.add(lockKey);
 
         if (!sport_event_id || !Array.isArray(scores) || scores.length === 0) {
             return NextResponse.json(
@@ -89,5 +104,9 @@ export async function POST(request: Request) {
             );
         }
         return NextResponse.json({ error: 'Failed to bulk create rank score configs' }, { status: 500 });
+    } finally {
+        if (lockKey) {
+            rankBulkLocks.delete(lockKey);
+        }
     }
 }

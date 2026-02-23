@@ -29,6 +29,12 @@ interface EventScoreInput {
     match_date?: string;
 }
 
+const scoreSaveLocks = (globalThis as typeof globalThis & {
+    __scoreSaveLocks?: Set<string>;
+}).__scoreSaveLocks || new Set<string>();
+
+(globalThis as typeof globalThis & { __scoreSaveLocks?: Set<string> }).__scoreSaveLocks = scoreSaveLocks;
+
 function scoreToRow(score: ScoreWithRow): (string | number)[] {
     return scoreToRowBase(score);
 }
@@ -41,6 +47,7 @@ function parseScore(row: unknown, index: number): ScoreWithRow {
 }
 
 export async function POST(request: Request) {
+    let lockKey: string | null = null;
     try {
         // 1. Authentication check
         const session = await getServerSession(authOptions);
@@ -100,6 +107,14 @@ export async function POST(request: Request) {
         }
         const maxScore = Number(sport.max_score) || 0;
         const targetYear = Number(year) || CURRENT_YEAR;
+        lockKey = `${sport_id}:${targetYear}`;
+        if (scoreSaveLocks.has(lockKey)) {
+            return NextResponse.json(
+                { error: "해당 종목/연도의 저장 작업이 진행 중입니다. 잠시 후 다시 시도해주세요." },
+                { status: 409 }
+            );
+        }
+        scoreSaveLocks.add(lockKey);
 
         // 4. Parse all scores with row indices
         const allScores: ScoreWithRow[] = scoresRawData.map((row, index) =>
@@ -315,7 +330,24 @@ export async function POST(request: Request) {
 
         await Promise.all(writePromises);
 
-        // 11. Build response scores (without internal fields)
+        // 11. Verify write consistency (best-effort)
+        const verifyRawData = await getSheetData(SHEET_NAMES.SCORES);
+        const verifyIds = new Set(
+            verifyRawData
+                .map((row) => parseScoreBase(row))
+                .filter((s) => s.sport_id === sport_id && (s.year ?? DEFAULT_YEAR) === targetYear)
+                .map((s) => s.id)
+        );
+
+        const missingIds = sportScores
+            .map((s) => s.id)
+            .filter((id) => !verifyIds.has(id));
+
+        if (missingIds.length > 0) {
+            throw new Error("저장 검증에 실패했습니다. 잠시 후 다시 시도해주세요.");
+        }
+
+        // 12. Build response scores (without internal fields)
         const responseScores: Score[] = sportScores.map((score) =>
             Object.fromEntries(
                 Object.entries(score).filter(
@@ -358,5 +390,9 @@ export async function POST(request: Request) {
             { error: message || "점수 저장/재계산 중 오류가 발생했습니다." },
             { status: 500 }
         );
+    } finally {
+        if (lockKey) {
+            scoreSaveLocks.delete(lockKey);
+        }
     }
 }

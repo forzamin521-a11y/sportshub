@@ -13,6 +13,12 @@ function isQuotaError(error: unknown): boolean {
     return message.includes('quota') || message.includes('rate limit') || message.includes('한도') || message.includes('429');
 }
 
+const rankWriteLocks = (globalThis as typeof globalThis & {
+    __rankWriteLocks?: Set<string>;
+}).__rankWriteLocks || new Set<string>();
+
+(globalThis as typeof globalThis & { __rankWriteLocks?: Set<string> }).__rankWriteLocks = rankWriteLocks;
+
 // GET: Fetch all rank score configs
 export async function GET() {
     try {
@@ -45,6 +51,7 @@ export async function GET() {
 
 // POST: Add a new rank score config (Admin only)
 export async function POST(request: Request) {
+    let lockKey: string | null = null;
     try {
         // Auth check
         const session = await getServerSession(authOptions);
@@ -53,6 +60,14 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
+        lockKey = String(body?.sport_event_id || "");
+        if (lockKey && rankWriteLocks.has(lockKey)) {
+            return NextResponse.json(
+                { error: '해당 세부종목의 순위 설정 저장이 진행 중입니다. 잠시 후 다시 시도해주세요.' },
+                { status: 409 }
+            );
+        }
+        if (lockKey) rankWriteLocks.add(lockKey);
 
         // Zod validation
         const validatedData = rankScoreConfigSchema.parse(body);
@@ -119,11 +134,14 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ error: 'Failed to create rank score config' }, { status: 500 });
+    } finally {
+        if (lockKey) rankWriteLocks.delete(lockKey);
     }
 }
 
 // PUT: Update a rank score config (Admin only)
 export async function PUT(request: Request) {
+    let lockKey: string | null = null;
     try {
         // Auth check
         const session = await getServerSession(authOptions);
@@ -133,6 +151,14 @@ export async function PUT(request: Request) {
 
         const body = await request.json();
         const { id, ...updateData } = body;
+        lockKey = String(updateData?.sport_event_id || "");
+        if (lockKey && rankWriteLocks.has(lockKey)) {
+            return NextResponse.json(
+                { error: '해당 세부종목의 순위 설정 저장이 진행 중입니다. 잠시 후 다시 시도해주세요.' },
+                { status: 409 }
+            );
+        }
+        if (lockKey) rankWriteLocks.add(lockKey);
 
         if (!id) {
             return NextResponse.json({ error: 'ID가 필요합니다' }, { status: 400 });
@@ -201,6 +227,8 @@ export async function PUT(request: Request) {
         }
 
         return NextResponse.json({ error: 'Failed to update rank score config' }, { status: 500 });
+    } finally {
+        if (lockKey) rankWriteLocks.delete(lockKey);
     }
 }
 
