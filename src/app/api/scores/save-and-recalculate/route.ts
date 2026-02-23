@@ -316,12 +316,13 @@ export async function POST(request: Request) {
         await Promise.all(writePromises);
 
         // 11. Build response scores (without internal fields)
-        const responseScores: Score[] = sportScores.map((score) => {
-            const response = { ...score };
-            delete response.rowIndex;
-            delete response.isNew;
-            return response;
-        });
+        const responseScores: Score[] = sportScores.map((score) =>
+            Object.fromEntries(
+                Object.entries(score).filter(
+                    ([key]) => key !== "rowIndex" && key !== "isNew"
+                )
+            ) as Score
+        );
 
         return NextResponse.json({
             message:
@@ -348,13 +349,13 @@ export async function POST(request: Request) {
             message.includes("quota")
         ) {
             return NextResponse.json(
-                { error: "Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요." },
+                { error: "Google Sheets API 한도 초과. 1분 후 다시 시도해주세요." },
                 { status: 429 }
             );
         }
 
         return NextResponse.json(
-            { error: error?.message || "점수 저장/재계산 중 오류가 발생했습니다." },
+            { error: message || "점수 저장/재계산 중 오류가 발생했습니다." },
             { status: 500 }
         );
     }

@@ -7,7 +7,7 @@ import { Trophy, Medal, TrendingUp, Target, BarChart3, Users, ArrowRight } from 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MedalistDialog } from "@/components/dashboard/MedalistDialog";
-import { formatOneDecimal } from "@/lib/number-format";
+import { formatMedalCount, formatOneDecimal } from "@/lib/number-format";
 
 interface DashboardClientProps {
     scores: Score[];
@@ -120,7 +120,7 @@ export function DashboardClient({ scores, regions, sports, sportEvents }: Dashbo
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground">금메달</p>
-                            <p className="text-xl font-bold medal-gold">{formatOneDecimal(totalStats.gold)}</p>
+                            <p className="text-xl font-bold medal-gold">{formatMedalCount(totalStats.gold)}개</p>
                         </div>
                     </div>
                 </button>
@@ -136,7 +136,7 @@ export function DashboardClient({ scores, regions, sports, sportEvents }: Dashbo
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground">은메달</p>
-                            <p className="text-xl font-bold medal-silver">{formatOneDecimal(totalStats.silver)}</p>
+                            <p className="text-xl font-bold medal-silver">{formatMedalCount(totalStats.silver)}개</p>
                         </div>
                     </div>
                 </button>
@@ -152,7 +152,7 @@ export function DashboardClient({ scores, regions, sports, sportEvents }: Dashbo
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground">동메달</p>
-                            <p className="text-xl font-bold medal-bronze">{formatOneDecimal(totalStats.bronze)}</p>
+                            <p className="text-xl font-bold medal-bronze">{formatMedalCount(totalStats.bronze)}개</p>
                         </div>
                     </div>
                 </button>
@@ -164,7 +164,7 @@ export function DashboardClient({ scores, regions, sports, sportEvents }: Dashbo
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground">총 메달</p>
-                            <p className="text-xl font-bold">{formatOneDecimal(totalStats.gold + totalStats.silver + totalStats.bronze)}</p>
+                            <p className="text-xl font-bold">{formatMedalCount(totalStats.gold + totalStats.silver + totalStats.bronze)}개</p>
                         </div>
                     </div>
                 </div>
@@ -195,15 +195,15 @@ export function DashboardClient({ scores, regions, sports, sportEvents }: Dashbo
                             </div>
                             <div className="flex items-center gap-1">
                                 <Medal className="h-3.5 w-3.5 medal-gold" />
-                                <span className="font-semibold medal-gold">{formatOneDecimal(totalStats.gold)}</span>
+                                <span className="font-semibold medal-gold">{formatMedalCount(totalStats.gold)}개</span>
                             </div>
                             <div className="flex items-center gap-1">
                                 <Medal className="h-3.5 w-3.5 medal-silver" />
-                                <span className="font-semibold medal-silver">{formatOneDecimal(totalStats.silver)}</span>
+                                <span className="font-semibold medal-silver">{formatMedalCount(totalStats.silver)}개</span>
                             </div>
                             <div className="flex items-center gap-1">
                                 <Medal className="h-3.5 w-3.5 medal-bronze" />
-                                <span className="font-semibold medal-bronze">{formatOneDecimal(totalStats.bronze)}</span>
+                                <span className="font-semibold medal-bronze">{formatMedalCount(totalStats.bronze)}개</span>
                             </div>
                         </div>
                     </div>
@@ -291,9 +291,9 @@ export function DashboardClient({ scores, regions, sports, sportEvents }: Dashbo
                                     <div className="font-bold text-lg">{formatOneDecimal(region.totalScore)}</div>
                                 </div>
                                 <div className="flex items-center gap-2 text-sm">
-                                    <span className="medal-gold font-semibold">{formatOneDecimal(region.gold)}</span>
-                                    <span className="medal-silver font-semibold">{formatOneDecimal(region.silver)}</span>
-                                    <span className="medal-bronze font-semibold">{formatOneDecimal(region.bronze)}</span>
+                                    <span className="medal-gold font-semibold">{formatMedalCount(region.gold)}개</span>
+                                    <span className="medal-silver font-semibold">{formatMedalCount(region.silver)}개</span>
+                                    <span className="medal-bronze font-semibold">{formatMedalCount(region.bronze)}개</span>
                                 </div>
                             </div>
                         </div>

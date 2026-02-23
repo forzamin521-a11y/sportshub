@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronDown, ChevronRight, Trophy, Target, Edit } from "luci
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { RegionScoresDialog } from "./RegionScoresDialog";
+import { CURRENT_YEAR } from "@/lib/constants";
 
 interface ScoreDetailClientProps {
     sport: Sport;

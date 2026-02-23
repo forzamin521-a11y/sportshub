@@ -71,7 +71,7 @@ export default function ComparePage() {
 
     // 선택된 시도들의 카테고리별 점수 집계
     const comparisonData = sports.reduce((acc, sport) => {
-        const category = sport.category;
+        const category = sport.category || "기타";
         const existingCategory = acc.find(item => item.category === category);
 
         if (!existingCategory) {
@@ -84,7 +84,7 @@ export default function ComparePage() {
                         s => s.region_id === regionId && s.sport_id === sport.id
                     );
                     const total = regionScores.reduce((sum, s) => sum + (s.actual_score || 0), 0);
-                    categoryData[region.name] = (categoryData[region.name] || 0) + total;
+                    categoryData[region.name] = Number(categoryData[region.name] || 0) + total;
                 }
             });
 
@@ -97,7 +97,7 @@ export default function ComparePage() {
                         s => s.region_id === regionId && s.sport_id === sport.id
                     );
                     const total = regionScores.reduce((sum, s) => sum + (s.actual_score || 0), 0);
-                    existingCategory[region.name] = (existingCategory[region.name] || 0) + total;
+                    existingCategory[region.name] = Number(existingCategory[region.name] || 0) + total;
                 }
             });
         }

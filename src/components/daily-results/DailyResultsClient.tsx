@@ -11,7 +11,8 @@ import {
   ChevronRight,
   BarChart3,
 } from "lucide-react";
-import { formatOneDecimal } from "@/lib/number-format";
+import { formatMedalCount, formatOneDecimal } from "@/lib/number-format";
+import { rankSortValue } from "@/lib/rank-utils";
 
 interface DailyResultsClientProps {
   scores: Score[];
@@ -218,11 +219,11 @@ export function DailyResultsClient({
                 경기도 메달
               </div>
               <div className="text-2xl font-bold">
-                <span className="medal-gold">{formatOneDecimal(summary.ggGold)}</span>
+                <span className="medal-gold">{formatMedalCount(summary.ggGold)}</span>
                 {" / "}
-                <span className="medal-silver">{formatOneDecimal(summary.ggSilver)}</span>
+                <span className="medal-silver">{formatMedalCount(summary.ggSilver)}</span>
                 {" / "}
-                <span className="medal-bronze">{formatOneDecimal(summary.ggBronze)}</span>
+                <span className="medal-bronze">{formatMedalCount(summary.ggBronze)}</span>
               </div>
               <div className="text-xs text-muted-foreground mt-1">금 / 은 / 동</div>
             </div>
@@ -232,7 +233,7 @@ export function DailyResultsClient({
                 경기도 메달 합계
               </div>
               <div className="text-2xl font-bold">
-                {formatOneDecimal(summary.ggGold + summary.ggSilver + summary.ggBronze)}개
+                {formatMedalCount(summary.ggGold + summary.ggSilver + summary.ggBronze)}개
               </div>
             </div>
           </div>
@@ -314,13 +315,13 @@ export function DailyResultsClient({
                             </td>
                             <td className="p-3" />
                             <td className="p-3 text-center medal-gold font-semibold">
-                              {group.ggGold ? formatOneDecimal(group.ggGold) : "-"}
+                              {group.ggGold ? formatMedalCount(group.ggGold) : "-"}
                             </td>
                             <td className="p-3 text-center medal-silver font-semibold">
-                              {group.ggSilver ? formatOneDecimal(group.ggSilver) : "-"}
+                              {group.ggSilver ? formatMedalCount(group.ggSilver) : "-"}
                             </td>
                             <td className="p-3 text-center medal-bronze font-semibold">
-                              {group.ggBronze ? formatOneDecimal(group.ggBronze) : "-"}
+                              {group.ggBronze ? formatMedalCount(group.ggBronze) : "-"}
                             </td>
                             <td className="p-3" />
                           </tr>
@@ -365,8 +366,8 @@ export function DailyResultsClient({
                                     )
                                       return 1;
                                     // Then by rank
-                                    const ra = parseInt(a.score.rank || "99");
-                                    const rb = parseInt(b.score.rank || "99");
+                                    const ra = rankSortValue(a.score.rank || "99");
+                                    const rb = rankSortValue(b.score.rank || "99");
                                     return ra - rb;
                                   })
                                   .map((r) => {
@@ -415,21 +416,21 @@ export function DailyResultsClient({
                                         <td className="p-2 text-center text-xs">
                                           {(r.score.gold ?? 0) > 0 && (
                                             <span className="medal-gold font-bold">
-                                              {formatOneDecimal(r.score.gold)}
+                                              {formatMedalCount(r.score.gold)}
                                             </span>
                                           )}
                                         </td>
                                         <td className="p-2 text-center text-xs">
                                           {(r.score.silver ?? 0) > 0 && (
                                             <span className="medal-silver font-bold">
-                                              {formatOneDecimal(r.score.silver)}
+                                              {formatMedalCount(r.score.silver)}
                                             </span>
                                           )}
                                         </td>
                                         <td className="p-2 text-center text-xs">
                                           {(r.score.bronze ?? 0) > 0 && (
                                             <span className="medal-bronze font-bold">
-                                              {formatOneDecimal(r.score.bronze)}
+                                              {formatMedalCount(r.score.bronze)}
                                             </span>
                                           )}
                                         </td>
@@ -462,6 +463,13 @@ export function DailyResultsClient({
 
 /* Rank badge component */
 function RankBadge({ rank }: { rank: string }) {
+  if (rank === "tie_1") {
+    return (
+      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-yellow-400/20 text-yellow-700">
+        공동1위
+      </span>
+    );
+  }
   const num = parseInt(rank);
   if (num === 1)
     return (

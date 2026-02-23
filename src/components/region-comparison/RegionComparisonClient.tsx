@@ -4,7 +4,7 @@ import { useMemo, useState, Fragment } from "react";
 import { Sport, Score, Region } from "@/types";
 import { GYEONGGI_REGION_ID } from "@/lib/constants";
 import { Users, BarChart3, ChevronDown, ChevronRight } from "lucide-react";
-import { formatOneDecimal } from "@/lib/number-format";
+import { formatMedalCount, formatOneDecimal } from "@/lib/number-format";
 
 interface RegionComparisonClientProps {
     scores: Score[];
@@ -230,16 +230,16 @@ export function RegionComparisonClient({ scores, sports, regions }: RegionCompar
                                         {formatOneDecimal(region.totalScore)}
                                     </td>
                                     <td className="p-3 text-center">
-                                        <span className="font-bold medal-gold">{formatOneDecimal(region.gold)}</span>
+                                        <span className="font-bold medal-gold">{formatMedalCount(region.gold)}</span>
                                     </td>
                                     <td className="p-3 text-center">
-                                        <span className="font-bold medal-silver">{formatOneDecimal(region.silver)}</span>
+                                        <span className="font-bold medal-silver">{formatMedalCount(region.silver)}</span>
                                     </td>
                                     <td className="p-3 text-center">
-                                        <span className="font-bold medal-bronze">{formatOneDecimal(region.bronze)}</span>
+                                        <span className="font-bold medal-bronze">{formatMedalCount(region.bronze)}</span>
                                     </td>
                                     <td className="p-3 text-center font-semibold">
-                                        {formatOneDecimal(region.gold + region.silver + region.bronze)}
+                                        {formatMedalCount(region.gold + region.silver + region.bronze)}
                                     </td>
                                 </tr>
                             ))}

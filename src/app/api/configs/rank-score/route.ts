@@ -6,6 +6,12 @@ import { SHEET_NAMES } from '@/lib/constants';
 import { RankScoreConfig } from '@/types';
 import { rankScoreConfigSchema } from '@/lib/validations';
 import { ZodError } from 'zod';
+import { formatRankLabel, rankSortValue } from '@/lib/rank-utils';
+
+function isQuotaError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return message.includes('quota') || message.includes('rate limit') || message.includes('한도') || message.includes('429');
+}
 
 // GET: Fetch all rank score configs
 export async function GET() {
@@ -16,31 +22,23 @@ export async function GET() {
             id: String(row.id),
             sport_event_id: String(row.sport_event_id),
             rank: String(row.rank),
-            rank_label: row.rank_label ? String(row.rank_label) : String(row.rank) + "위",
+            rank_label: row.rank_label ? String(row.rank_label) : formatRankLabel(String(row.rank)),
             acquired_score: Number(row.acquired_score),
             medal_score: Number(row.medal_score),
             updated_at: row.updated_at ? String(row.updated_at) : undefined,
         }));
 
-        // Sort by rank (handle both numeric and tournament rounds)
-        configs.sort((a, b) => {
-            const aRank = String(a.rank);
-            const bRank = String(b.rank);
-            const aIsRound = aRank.startsWith('round_of_');
-            const bIsRound = bRank.startsWith('round_of_');
-            if (aIsRound && !bIsRound) return 1;
-            if (!aIsRound && bIsRound) return -1;
-            if (aIsRound && bIsRound) {
-                const aNum = parseInt(aRank.replace('round_of_', ''));
-                const bNum = parseInt(bRank.replace('round_of_', ''));
-                return aNum - bNum;
-            }
-            return parseInt(aRank) - parseInt(bRank);
-        });
+        configs.sort((a, b) => rankSortValue(String(a.rank)) - rankSortValue(String(b.rank)));
 
         return NextResponse.json({ data: configs });
     } catch (error) {
         console.error('Failed to fetch rank score configs:', error);
+        if (isQuotaError(error)) {
+            return NextResponse.json(
+                { error: 'Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.' },
+                { status: 429 }
+            );
+        }
         return NextResponse.json({ error: 'Failed to fetch rank score configs' }, { status: 500 });
     }
 }
@@ -83,7 +81,7 @@ export async function POST(request: Request) {
             newId,
             validatedData.sport_event_id,
             validatedData.rank,
-            validatedData.rank_label || (String(validatedData.rank) + "위"),
+            validatedData.rank_label || formatRankLabel(String(validatedData.rank)),
             validatedData.acquired_score,
             validatedData.medal_score,
             now,
@@ -94,7 +92,7 @@ export async function POST(request: Request) {
             id: newId,
             sport_event_id: validatedData.sport_event_id,
             rank: validatedData.rank,
-            rank_label: validatedData.rank_label || (String(validatedData.rank) + "위"),
+            rank_label: validatedData.rank_label || formatRankLabel(String(validatedData.rank)),
             acquired_score: validatedData.acquired_score,
             medal_score: validatedData.medal_score,
             updated_at: now,
@@ -111,6 +109,12 @@ export async function POST(request: Request) {
             return NextResponse.json(
                 { error: '입력 데이터가 유효하지 않습니다', details: error.issues },
                 { status: 400 }
+            );
+        }
+        if (isQuotaError(error)) {
+            return NextResponse.json(
+                { error: 'Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.' },
+                { status: 429 }
             );
         }
 
@@ -156,7 +160,7 @@ export async function PUT(request: Request) {
             id,
             sport_event_id: validatedData.sport_event_id ?? String(existingConfig.sport_event_id),
             rank: validatedData.rank ?? String(existingConfig.rank),
-            rank_label: validatedData.rank_label ?? (existingConfig.rank_label ? String(existingConfig.rank_label) : String(existingConfig.rank) + "위"),
+            rank_label: validatedData.rank_label ?? (existingConfig.rank_label ? String(existingConfig.rank_label) : formatRankLabel(String(existingConfig.rank))),
             acquired_score: validatedData.acquired_score ?? Number(existingConfig.acquired_score),
             medal_score: validatedData.medal_score ?? Number(existingConfig.medal_score),
             updated_at: now,
@@ -187,6 +191,12 @@ export async function PUT(request: Request) {
             return NextResponse.json(
                 { error: '입력 데이터가 유효하지 않습니다', details: error.issues },
                 { status: 400 }
+            );
+        }
+        if (isQuotaError(error)) {
+            return NextResponse.json(
+                { error: 'Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.' },
+                { status: 429 }
             );
         }
 
@@ -226,6 +236,12 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ message: '순위별 점수 설정이 삭제되었습니다' });
     } catch (error) {
         console.error('Failed to delete rank score config:', error);
+        if (isQuotaError(error)) {
+            return NextResponse.json(
+                { error: 'Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.' },
+                { status: 429 }
+            );
+        }
         return NextResponse.json({ error: 'Failed to delete rank score config' }, { status: 500 });
     }
 }

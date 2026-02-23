@@ -3,6 +3,7 @@ import { SHEET_NAMES } from "@/lib/constants";
 import { Sport, SportEvent, RankScoreConfig } from "@/types";
 import { SportDetailClient } from "./SportDetailClient";
 import { notFound } from "next/navigation";
+import { formatRankLabel } from "@/lib/rank-utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,7 @@ async function getSportData(sportId: string) {
             id: String(row.id),
             sport_event_id: String(row.sport_event_id),
             rank: String(row.rank),
-            rank_label: row.rank_label ? String(row.rank_label) : `${row.rank}위`,
+            rank_label: row.rank_label ? String(row.rank_label) : formatRankLabel(String(row.rank)),
             acquired_score: Number(row.acquired_score),
             medal_score: Number(row.medal_score),
             updated_at: row.updated_at ? String(row.updated_at) : undefined,

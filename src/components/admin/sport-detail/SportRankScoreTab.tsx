@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { formatRankLabel, rankSortValue } from "@/lib/rank-utils";
 
 interface SportRankScoreTabProps {
     sport: Sport;
@@ -41,6 +42,7 @@ export function SportRankScoreTab({
     const [bulkMaxRank, setBulkMaxRank] = useState(8);
     const [bulkScores, setBulkScores] = useState<Array<{ rank: string; rank_label: string; acquired_score: number; medal_score: number }>>([]);
     const [includeTournamentRounds, setIncludeTournamentRounds] = useState(false);
+    const [includeTieFirst, setIncludeTieFirst] = useState(false);
     const [saving, setSaving] = useState(false);
 
     const toggleDivision = (division: string) => {
@@ -55,21 +57,9 @@ export function SportRankScoreTab({
 
     // Get rank scores for specific event
     const getEventRankScores = (eventId: string) => {
-        return rankScores.filter(rs => rs.sport_event_id === eventId).sort((a, b) => {
-            // 라운드는 맨 뒤로 (round_of_로 시작)
-            const aIsRound = a.rank.startsWith('round_of_');
-            const bIsRound = b.rank.startsWith('round_of_');
-            if (aIsRound && !bIsRound) return 1;
-            if (!aIsRound && bIsRound) return -1;
-            if (aIsRound && bIsRound) {
-                // 라운드끼리는 숫자가 작을수록 앞 (4강 > 8강 > 16강)
-                const aNum = parseInt(a.rank.replace('round_of_', ''));
-                const bNum = parseInt(b.rank.replace('round_of_', ''));
-                return aNum - bNum;
-            }
-            // 순위는 숫자로 비교
-            return parseInt(a.rank) - parseInt(b.rank);
-        });
+        return rankScores
+            .filter(rs => rs.sport_event_id === eventId)
+            .sort((a, b) => rankSortValue(a.rank) - rankSortValue(b.rank));
     };
 
     // Check if event has rank scores
@@ -147,11 +137,13 @@ export function SportRankScoreTab({
                 // Use existing scores
                 const onlyRanks = existingScores.filter(rs => !rs.rank.startsWith('round_of_'));
                 const hasTournamentRounds = existingScores.some(rs => rs.rank.startsWith('round_of_'));
+                const hasTieFirst = existingScores.some(rs => rs.rank === "tie_1");
                 setBulkMaxRank(onlyRanks.length);
                 setIncludeTournamentRounds(hasTournamentRounds);
+                setIncludeTieFirst(hasTieFirst);
                 setBulkScores(existingScores.map(rs => ({
                     rank: rs.rank,
-                    rank_label: rs.rank_label,
+                    rank_label: rs.rank_label || formatRankLabel(rs.rank),
                     acquired_score: rs.acquired_score,
                     medal_score: rs.medal_score,
                 })));
@@ -159,6 +151,7 @@ export function SportRankScoreTab({
                 // No existing scores, use defaults
                 setBulkMaxRank(8);
                 setIncludeTournamentRounds(false);
+                setIncludeTieFirst(false);
                 initBulkScores(8);
             }
         } else if (level === "division" && division) {
@@ -170,17 +163,20 @@ export function SportRankScoreTab({
                 const sampleScores = getEventRankScores(sampleEventWithScores.id);
                 const onlyRanks = sampleScores.filter(rs => !rs.rank.startsWith('round_of_'));
                 const hasTournamentRounds = sampleScores.some(rs => rs.rank.startsWith('round_of_'));
+                const hasTieFirst = sampleScores.some(rs => rs.rank === "tie_1");
                 setBulkMaxRank(onlyRanks.length);
                 setIncludeTournamentRounds(hasTournamentRounds);
+                setIncludeTieFirst(hasTieFirst);
                 setBulkScores(sampleScores.map(rs => ({
                     rank: rs.rank,
-                    rank_label: rs.rank_label,
+                    rank_label: rs.rank_label || formatRankLabel(rs.rank),
                     acquired_score: rs.acquired_score,
                     medal_score: rs.medal_score,
                 })));
             } else {
                 setBulkMaxRank(8);
                 setIncludeTournamentRounds(false);
+                setIncludeTieFirst(false);
                 initBulkScores(8);
             }
         } else {
@@ -191,17 +187,20 @@ export function SportRankScoreTab({
                 const sampleScores = getEventRankScores(anyEventWithScores.id);
                 const onlyRanks = sampleScores.filter(rs => !rs.rank.startsWith('round_of_'));
                 const hasTournamentRounds = sampleScores.some(rs => rs.rank.startsWith('round_of_'));
+                const hasTieFirst = sampleScores.some(rs => rs.rank === "tie_1");
                 setBulkMaxRank(onlyRanks.length);
                 setIncludeTournamentRounds(hasTournamentRounds);
+                setIncludeTieFirst(hasTieFirst);
                 setBulkScores(sampleScores.map(rs => ({
                     rank: rs.rank,
-                    rank_label: rs.rank_label,
+                    rank_label: rs.rank_label || formatRankLabel(rs.rank),
                     acquired_score: rs.acquired_score,
                     medal_score: rs.medal_score,
                 })));
             } else {
                 setBulkMaxRank(8);
                 setIncludeTournamentRounds(false);
+                setIncludeTieFirst(false);
                 initBulkScores(8);
             }
         }
@@ -231,6 +230,30 @@ export function SportRankScoreTab({
         } else {
             // Remove tournament rounds
             setBulkScores(prev => prev.filter(s => !s.rank.startsWith('round_of_')));
+        }
+    };
+
+    const handleTieFirstToggle = (checked: boolean) => {
+        setIncludeTieFirst(checked);
+        if (checked) {
+            setBulkScores(prev => {
+                if (prev.some(s => s.rank === "tie_1")) return prev;
+                return [
+                    ...prev,
+                    { rank: "tie_1", rank_label: "공동1위", acquired_score: 9, medal_score: 5 },
+                ].sort((a, b) => rankSortValue(a.rank) - rankSortValue(b.rank));
+            });
+        } else {
+            setBulkScores(prev => prev.filter(s => s.rank !== "tie_1"));
+        }
+    };
+
+    const getResponseError = async (res: Response, fallback: string) => {
+        try {
+            const data = await res.json();
+            return data.error || fallback;
+        } catch {
+            return fallback;
         }
     };
 
@@ -268,10 +291,9 @@ export function SportRankScoreTab({
             );
 
             const results = await Promise.all(promises);
-            const failedCount = results.filter(r => !r.ok).length;
-
-            if (failedCount > 0) {
-                throw new Error(`${failedCount}개의 요청이 실패했습니다.`);
+            const firstFailure = results.find(r => !r.ok);
+            if (firstFailure) {
+                throw new Error(await getResponseError(firstFailure, "등록 중 오류가 발생했습니다."));
             }
 
             // Update local state - remove old configs for target events, then add new ones
@@ -281,7 +303,7 @@ export function SportRankScoreTab({
                     id: crypto.randomUUID(),
                     sport_event_id: event.id,
                     rank: score.rank,
-                    rank_label: score.rank_label,
+                    rank_label: score.rank_label || formatRankLabel(score.rank),
                     acquired_score: score.acquired_score,
                     medal_score: score.medal_score,
                     updated_at: new Date().toISOString(),
@@ -307,7 +329,15 @@ export function SportRankScoreTab({
     const unconfiguredCount = events.length - configuredCount;
 
     return (
-        <div className="glass-card p-5 space-y-4">
+        <div className="glass-card p-5 space-y-4 relative">
+            {saving && (
+                <div className="absolute inset-0 z-30 bg-background/70 backdrop-blur-[1px] flex items-center justify-center rounded-xl">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-white shadow-sm text-sm font-medium">
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        처리 중입니다. 잠시만 기다려주세요.
+                    </div>
+                </div>
+            )}
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -398,7 +428,7 @@ export function SportRankScoreTab({
                                                 </div>
                                                 {isConfigured && (
                                                     <div className="text-xs text-muted-foreground">
-                                                        {eventRankScores.map(rs => `${rs.rank_label}(${rs.acquired_score}점)`).join(', ')}
+                                                        {eventRankScores.map(rs => `${rs.rank_label || formatRankLabel(rs.rank)}(${rs.acquired_score}점)`).join(', ')}
                                                     </div>
                                                 )}
                                             </div>
@@ -470,6 +500,21 @@ export function SportRankScoreTab({
                                 id="tournament-rounds"
                                 checked={includeTournamentRounds}
                                 onCheckedChange={handleTournamentRoundsToggle}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10">
+                            <div>
+                                <Label htmlFor="tie-first" className="cursor-pointer">
+                                    공동1위 포함
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    공동1위 점수를 별도로 설정합니다.
+                                </p>
+                            </div>
+                            <Switch
+                                id="tie-first"
+                                checked={includeTieFirst}
+                                onCheckedChange={handleTieFirstToggle}
                             />
                         </div>
 

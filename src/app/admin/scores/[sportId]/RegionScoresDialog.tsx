@@ -14,6 +14,7 @@ import { Loader2, Save, ChevronLeft, ChevronRight, Calculator } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { rankSortValue } from "@/lib/rank-utils";
 
 interface RegionScoresDialogProps {
     event: SportEvent;
@@ -242,20 +243,7 @@ export function RegionScoresDialog({
     // Get available rank options for this event
     const availableRanks = useMemo(() => {
         const eventRankScores = rankScores.filter(rs => rs.sport_event_id === event.id);
-        return eventRankScores.sort((a, b) => {
-            const aRank = String(a.rank);
-            const bRank = String(b.rank);
-            const aIsRound = aRank.startsWith('round_of_');
-            const bIsRound = bRank.startsWith('round_of_');
-            if (aIsRound && !bIsRound) return 1;
-            if (!aIsRound && bIsRound) return -1;
-            if (aIsRound && bIsRound) {
-                const aNum = parseInt(aRank.replace('round_of_', ''));
-                const bNum = parseInt(bRank.replace('round_of_', ''));
-                return aNum - bNum;
-            }
-            return parseInt(aRank) - parseInt(bRank);
-        });
+        return eventRankScores.sort((a, b) => rankSortValue(String(a.rank)) - rankSortValue(String(b.rank)));
     }, [rankScores, event.id]);
 
     // Auto-calculate scores when rank changes
@@ -428,7 +416,7 @@ export function RegionScoresDialog({
             console.error(error);
             const message = error instanceof Error ? error.message : String(error);
             if (message.includes("한도") || message.includes("quota")) {
-                toast.error("Google Sheets API 한도 초과. 잠시 후 다시 시도해주세요.");
+                toast.error("Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.");
             } else {
                 toast.error(message || "저장 중 오류가 발생했습니다.");
             }
@@ -455,7 +443,15 @@ export function RegionScoresDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto relative">
+                {saving && (
+                    <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-[1px] flex items-center justify-center rounded-lg">
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-white shadow-sm text-sm font-medium">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            저장 중입니다. 잠시만 기다려주세요.
+                        </div>
+                    </div>
+                )}
                 <DialogHeader>
                     <DialogTitle>
                         {sport.name} - {event.division} - {event.event_name}

@@ -12,6 +12,7 @@ import {
 import { Region, Score, Sport } from "@/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Loader2 } from "lucide-react";
+import { formatMedalCount } from "@/lib/number-format";
 
 interface ScoreWithDetails extends Score {
     sport_name: string;
@@ -154,7 +155,7 @@ export default function RegionsAnalysisPage() {
                             <CardTitle className="text-sm font-medium">총 메달 수</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-amber-600">{totalMedals.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
+                            <div className="text-2xl font-bold text-amber-600">{formatMedalCount(totalMedals)}</div>
                             <p className="text-xs text-muted-foreground mt-1">개</p>
                         </CardContent>
                     </Card>

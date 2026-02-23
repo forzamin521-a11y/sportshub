@@ -4,7 +4,7 @@ import { useMemo, useState, Fragment } from "react";
 import { Sport, Score, SportEvent } from "@/types";
 import { BarChart3, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { formatOneDecimal } from "@/lib/number-format";
+import { formatMedalCount, formatOneDecimal } from "@/lib/number-format";
 
 interface SportsPerformanceClientProps {
     scores: Score[];
@@ -237,13 +237,13 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
                                                 {formatOneDecimal(sportTotal.totalScore)}
                                             </td>
                                             <td className="p-3 text-center font-bold medal-gold">
-                                                {formatOneDecimal(sportTotal.gold)}
+                                                {formatMedalCount(sportTotal.gold)}
                                             </td>
                                             <td className="p-3 text-center font-bold medal-silver">
-                                                {formatOneDecimal(sportTotal.silver)}
+                                                {formatMedalCount(sportTotal.silver)}
                                             </td>
                                             <td className="p-3 text-center font-bold medal-bronze">
-                                                {formatOneDecimal(sportTotal.bronze)}
+                                                {formatMedalCount(sportTotal.bronze)}
                                             </td>
                                             <td className="p-3"></td>
                                         </tr>
@@ -271,17 +271,17 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
                                                     </td>
                                                     <td className="p-3 text-center">
                                                         {stat.gold > 0 && (
-                                                            <span className="font-bold medal-gold">{formatOneDecimal(stat.gold)}</span>
+                                                            <span className="font-bold medal-gold">{formatMedalCount(stat.gold)}</span>
                                                         )}
                                                     </td>
                                                     <td className="p-3 text-center">
                                                         {stat.silver > 0 && (
-                                                            <span className="font-bold medal-silver">{formatOneDecimal(stat.silver)}</span>
+                                                            <span className="font-bold medal-silver">{formatMedalCount(stat.silver)}</span>
                                                         )}
                                                     </td>
                                                     <td className="p-3 text-center">
                                                         {stat.bronze > 0 && (
-                                                            <span className="font-bold medal-bronze">{formatOneDecimal(stat.bronze)}</span>
+                                                            <span className="font-bold medal-bronze">{formatMedalCount(stat.bronze)}</span>
                                                         )}
                                                     </td>
                                                     <td className="p-3 text-center text-xs text-muted-foreground">
@@ -311,17 +311,17 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
                                                         </td>
                                                         <td className="p-3 text-center text-sm">
                                                             {event.gold > 0 && (
-                                                                <span className="medal-gold">{formatOneDecimal(event.gold)}</span>
+                                                                <span className="medal-gold">{formatMedalCount(event.gold)}</span>
                                                             )}
                                                         </td>
                                                         <td className="p-3 text-center text-sm">
                                                             {event.silver > 0 && (
-                                                                <span className="medal-silver">{formatOneDecimal(event.silver)}</span>
+                                                                <span className="medal-silver">{formatMedalCount(event.silver)}</span>
                                                             )}
                                                         </td>
                                                         <td className="p-3 text-center text-sm">
                                                             {event.bronze > 0 && (
-                                                                <span className="medal-bronze">{formatOneDecimal(event.bronze)}</span>
+                                                                <span className="medal-bronze">{formatMedalCount(event.bronze)}</span>
                                                             )}
                                                         </td>
                                                         <td className="p-3 text-center">
@@ -355,13 +355,13 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
                                     {formatOneDecimal(filteredStats.reduce((sum, s) => sum + s.totalScore, 0))}
                                 </td>
                                 <td className="p-3 text-center medal-gold">
-                                    {formatOneDecimal(filteredStats.reduce((sum, s) => sum + s.gold, 0))}
+                                    {formatMedalCount(filteredStats.reduce((sum, s) => sum + s.gold, 0))}
                                 </td>
                                 <td className="p-3 text-center medal-silver">
-                                    {formatOneDecimal(filteredStats.reduce((sum, s) => sum + s.silver, 0))}
+                                    {formatMedalCount(filteredStats.reduce((sum, s) => sum + s.silver, 0))}
                                 </td>
                                 <td className="p-3 text-center medal-bronze">
-                                    {formatOneDecimal(filteredStats.reduce((sum, s) => sum + s.bronze, 0))}
+                                    {formatMedalCount(filteredStats.reduce((sum, s) => sum + s.bronze, 0))}
                                 </td>
                                 <td className="p-3"></td>
                             </tr>

@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSheetData, appendSheetData } from '@/lib/google-sheets';
 import { SHEET_NAMES } from '@/lib/constants';
+import { formatRankLabel } from '@/lib/rank-utils';
+
+function isQuotaError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return message.includes('quota') || message.includes('rate limit') || message.includes('한도') || message.includes('429');
+}
 
 // POST: Bulk add rank score configs (Admin only)
 export async function POST(request: Request) {
@@ -26,7 +32,6 @@ export async function POST(request: Request) {
         // Validate scores structure
         for (const score of scores) {
             if (typeof score.rank !== 'string' ||
-                typeof score.rank_label !== 'string' ||
                 typeof score.acquired_score !== 'number' ||
                 typeof score.medal_score !== 'number') {
                 return NextResponse.json(
@@ -56,7 +61,7 @@ export async function POST(request: Request) {
             crypto.randomUUID(),
             sport_event_id,
             score.rank,
-            score.rank_label,
+            score.rank_label || formatRankLabel(score.rank),
             score.acquired_score,
             score.medal_score,
             now,
@@ -77,6 +82,12 @@ export async function POST(request: Request) {
         );
     } catch (error) {
         console.error('Failed to bulk create rank score configs:', error);
+        if (isQuotaError(error)) {
+            return NextResponse.json(
+                { error: 'Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.' },
+                { status: 429 }
+            );
+        }
         return NextResponse.json({ error: 'Failed to bulk create rank score configs' }, { status: 500 });
     }
 }

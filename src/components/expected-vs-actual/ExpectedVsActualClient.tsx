@@ -10,7 +10,7 @@ import {
   TrendingUp,
   BarChart3,
 } from "lucide-react";
-import { formatOneDecimal } from "@/lib/number-format";
+import { formatMedalCount, formatOneDecimal } from "@/lib/number-format";
 
 interface ExpectedVsActualClientProps {
   scores: Score[];
@@ -315,11 +315,11 @@ export function ExpectedVsActualClient({
             메달 (금/은/동)
           </div>
           <div className="text-2xl font-bold">
-            <span className="medal-gold">{formatOneDecimal(summaryStats.gold)}</span>
+            <span className="medal-gold">{formatMedalCount(summaryStats.gold)}</span>
             {" / "}
-            <span className="medal-silver">{formatOneDecimal(summaryStats.silver)}</span>
+            <span className="medal-silver">{formatMedalCount(summaryStats.silver)}</span>
             {" / "}
-            <span className="medal-bronze">{formatOneDecimal(summaryStats.bronze)}</span>
+            <span className="medal-bronze">{formatMedalCount(summaryStats.bronze)}</span>
           </div>
         </div>
       </div>
@@ -622,13 +622,13 @@ function RegionDetailTable({
                       <AchievementBadge value={pct(sport.actualTotal, sport.expectedTotal)} />
                     </td>
                     <td className="p-3 text-center medal-gold font-semibold">
-                      {sport.gold || "-"}
+                      {sport.gold > 0 ? formatMedalCount(sport.gold) : "-"}
                     </td>
                     <td className="p-3 text-center medal-silver font-semibold">
-                      {sport.silver || "-"}
+                      {sport.silver > 0 ? formatMedalCount(sport.silver) : "-"}
                     </td>
                     <td className="p-3 text-center medal-bronze font-semibold">
-                      {sport.bronze || "-"}
+                      {sport.bronze > 0 ? formatMedalCount(sport.bronze) : "-"}
                     </td>
                   </tr>
 
@@ -672,13 +672,13 @@ function RegionDetailTable({
                               <AchievementBadge value={pct(div.actualTotal, div.expectedTotal)} />
                             </td>
                             <td className="p-2 text-center">
-                              {div.gold > 0 && <span className="medal-gold font-bold">{div.gold}</span>}
+                              {div.gold > 0 && <span className="medal-gold font-bold">{formatMedalCount(div.gold)}</span>}
                             </td>
                             <td className="p-2 text-center">
-                              {div.silver > 0 && <span className="medal-silver font-bold">{div.silver}</span>}
+                              {div.silver > 0 && <span className="medal-silver font-bold">{formatMedalCount(div.silver)}</span>}
                             </td>
                             <td className="p-2 text-center">
-                              {div.bronze > 0 && <span className="medal-bronze font-bold">{div.bronze}</span>}
+                              {div.bronze > 0 && <span className="medal-bronze font-bold">{formatMedalCount(div.bronze)}</span>}
                             </td>
                           </tr>
 
@@ -705,13 +705,13 @@ function RegionDetailTable({
                                   />
                                 </td>
                                 <td className="p-2 text-center text-xs">
-                                  {ev.gold > 0 && <span className="medal-gold">{ev.gold}</span>}
+                                  {ev.gold > 0 && <span className="medal-gold">{formatMedalCount(ev.gold)}</span>}
                                 </td>
                                 <td className="p-2 text-center text-xs">
-                                  {ev.silver > 0 && <span className="medal-silver">{ev.silver}</span>}
+                                  {ev.silver > 0 && <span className="medal-silver">{formatMedalCount(ev.silver)}</span>}
                                 </td>
                                 <td className="p-2 text-center text-xs">
-                                  {ev.bronze > 0 && <span className="medal-bronze">{ev.bronze}</span>}
+                                  {ev.bronze > 0 && <span className="medal-bronze">{formatMedalCount(ev.bronze)}</span>}
                                 </td>
                               </tr>
                             ))}
@@ -732,9 +732,9 @@ function RegionDetailTable({
               <td className="p-3 text-right">
                 <AchievementBadge value={summaryStats.achievementRate} />
               </td>
-              <td className="p-3 text-center medal-gold">{summaryStats.gold}</td>
-              <td className="p-3 text-center medal-silver">{summaryStats.silver}</td>
-              <td className="p-3 text-center medal-bronze">{summaryStats.bronze}</td>
+              <td className="p-3 text-center medal-gold">{formatMedalCount(summaryStats.gold)}</td>
+              <td className="p-3 text-center medal-silver">{formatMedalCount(summaryStats.silver)}</td>
+              <td className="p-3 text-center medal-bronze">{formatMedalCount(summaryStats.bronze)}</td>
             </tr>
           </tfoot>
         </table>

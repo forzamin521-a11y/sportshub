@@ -92,7 +92,7 @@ export async function getSheetData(
 
             // API 한도 에러 체크
             if (isRateLimitError(error)) {
-                throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
+                throw new Error('Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.');
             }
 
             throw error;
@@ -129,7 +129,7 @@ export async function appendSheetData(
 
         // API 한도 에러 체크
         if (isRateLimitError(error)) {
-            throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
+            throw new Error('Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.');
         }
 
         throw error;
@@ -158,7 +158,7 @@ export async function updateSheetData(
 
         // API 한도 에러 체크
         if (isRateLimitError(error)) {
-            throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
+            throw new Error('Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.');
         }
 
         throw error;
@@ -188,7 +188,7 @@ export async function batchUpdateSheetData(
         console.error(`Error batch updating sheet ${sheetName}:`, error);
 
         if (isRateLimitError(error)) {
-            throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
+            throw new Error('Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.');
         }
 
         throw error;
@@ -243,7 +243,7 @@ export async function deleteSheetRow(
 
         // API 한도 에러 체크
         if (isRateLimitError(error)) {
-            throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
+            throw new Error('Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.');
         }
 
         throw error;

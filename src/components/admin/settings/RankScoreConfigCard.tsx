@@ -38,6 +38,7 @@ import { Loader2, Save, Pencil, Trash, Plus, X, Check, ChevronDown, ChevronRight
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
+import { formatRankLabel, rankSortValue } from "@/lib/rank-utils";
 
 interface RankScoreConfigCardProps {
     initialConfigs: RankScoreConfig[];
@@ -59,7 +60,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
     // Add rank dialog
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [addEventId, setAddEventId] = useState<string>("");
-    const [addRank, setAddRank] = useState<number>(1);
+    const [addRank, setAddRank] = useState<string>("1");
     const [addAcquiredScore, setAddAcquiredScore] = useState<number>(0);
     const [addMedalScore, setAddMedalScore] = useState<number>(0);
 
@@ -99,7 +100,18 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
 
     // Get configs for a specific event
     const getEventConfigs = (eventId: string) => {
-        return configs.filter(c => c.sport_event_id === eventId).sort((a, b) => Number(a.rank) - Number(b.rank));
+        return configs
+            .filter(c => c.sport_event_id === eventId)
+            .sort((a, b) => rankSortValue(String(a.rank)) - rankSortValue(String(b.rank)));
+    };
+
+    const getResponseError = async (res: Response, fallback: string) => {
+        try {
+            const data = await res.json();
+            return data.error || fallback;
+        } catch {
+            return fallback;
+        }
     };
 
     // Check if event has any configs
@@ -157,7 +169,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
         }
 
         const existingRanks = getEventConfigs(addEventId).map(c => c.rank);
-        if (existingRanks.includes(String(addRank))) {
+        if (existingRanks.includes(addRank)) {
             toast.error("해당 순위가 이미 존재합니다.");
             return;
         }
@@ -171,13 +183,14 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
                 body: JSON.stringify({
                     sport_event_id: addEventId,
                     rank: addRank,
+                    rank_label: formatRankLabel(addRank),
                     acquired_score: addAcquiredScore,
                     medal_score: addMedalScore,
                 }),
             });
 
             if (!res.ok) {
-                throw new Error("Failed to add config");
+                throw new Error(await getResponseError(res, "추가 중 오류가 발생했습니다."));
             }
 
             const result = await res.json();
@@ -189,12 +202,13 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             toast.success("순위별 점수가 추가되었습니다.");
             setShowAddDialog(false);
             setAddEventId("");
-            setAddRank(1);
+            setAddRank("1");
             setAddAcquiredScore(0);
             setAddMedalScore(0);
         } catch (error) {
             console.error(error);
-            toast.error("추가 중 오류가 발생했습니다.");
+            const message = error instanceof Error ? error.message : "추가 중 오류가 발생했습니다.";
+            toast.error(message);
         } finally {
             setSaving(false);
         }
@@ -221,7 +235,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             });
 
             if (!res.ok) {
-                throw new Error("Failed to update config");
+                throw new Error(await getResponseError(res, "수정 중 오류가 발생했습니다."));
             }
 
             // 로컬 상태 즉시 업데이트
@@ -235,7 +249,8 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             setEditingId(null);
         } catch (error) {
             console.error(error);
-            toast.error("수정 중 오류가 발생했습니다.");
+            const message = error instanceof Error ? error.message : "수정 중 오류가 발생했습니다.";
+            toast.error(message);
         } finally {
             setSaving(false);
         }
@@ -252,7 +267,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             });
 
             if (!res.ok) {
-                throw new Error("Failed to delete config");
+                throw new Error(await getResponseError(res, "삭제 중 오류가 발생했습니다."));
             }
 
             // 로컬 상태 즉시 업데이트
@@ -262,7 +277,8 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             setDeleteId(null);
         } catch (error) {
             console.error(error);
-            toast.error("삭제 중 오류가 발생했습니다.");
+            const message = error instanceof Error ? error.message : "삭제 중 오류가 발생했습니다.";
+            toast.error(message);
         } finally {
             setSaving(false);
         }
@@ -367,7 +383,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             const conflictRanks = bulkScores.filter(s => existingRanks.includes(String(s.rank)));
             if (conflictRanks.length > 0) {
                 const eventName = sportEvents.find(e => e.id === eventId)?.event_name || eventId;
-                conflicts.push(`${eventName}: ${conflictRanks.map(c => c.rank + '위').join(', ')}`);
+                conflicts.push(`${eventName}: ${conflictRanks.map(c => formatRankLabel(String(c.rank))).join(', ')}`);
             }
         });
 
@@ -379,8 +395,8 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
         setSaving(true);
 
         try {
-            // Send bulk requests for all target events
-            const promises = targetEventIds.map(eventId =>
+            const promises = targetEventIds.map(async (eventId) => {
+                const response =
                 fetch("/api/configs/rank-score/bulk", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -388,14 +404,14 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
                         sport_event_id: eventId,
                         scores: bulkScores,
                     }),
-                })
-            );
+                });
+                return response;
+            });
 
             const results = await Promise.all(promises);
-            const failedCount = results.filter(r => !r.ok).length;
-
-            if (failedCount > 0) {
-                throw new Error(`${failedCount}개의 요청이 실패했습니다.`);
+            const firstFailure = results.find(r => !r.ok);
+            if (firstFailure) {
+                throw new Error(await getResponseError(firstFailure, "등록 중 오류가 발생했습니다."));
             }
 
             // 로컬 상태 즉시 업데이트
@@ -404,7 +420,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
                     id: crypto.randomUUID(),
                     sport_event_id: eventId,
                     rank: String(score.rank),
-                    rank_label: score.rank + "위",
+                    rank_label: formatRankLabel(String(score.rank)),
                     acquired_score: score.acquired_score,
                     medal_score: score.medal_score,
                     updated_at: new Date().toISOString(),
@@ -418,6 +434,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
             setBulkDivision("all");
             setBulkEventId("all");
             setBulkSearchTerm("");
+            router.refresh();
         } catch (error) {
             console.error(error);
             toast.error(error instanceof Error ? error.message : "등록 중 오류가 발생했습니다.");
@@ -428,7 +445,15 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
 
     return (
         <>
-            <div className="glass-card p-6">
+            <div className="glass-card p-6 relative">
+                {saving && (
+                    <div className="absolute inset-0 z-30 bg-background/70 backdrop-blur-[1px] flex items-center justify-center rounded-xl">
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-white shadow-sm text-sm font-medium">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            처리 중입니다. 잠시만 기다려주세요.
+                        </div>
+                    </div>
+                )}
                 <div className="flex items-center justify-between mb-5">
                     <div>
                         <h3 className="font-semibold">순위별 점수 설정</h3>
@@ -478,12 +503,19 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>순위</Label>
-                                        <Input
-                                            type="number"
-                                            value={addRank}
-                                            onChange={(e) => setAddRank(parseInt(e.target.value) || 1)}
-                                            min={1}
-                                        />
+                                        <Select value={addRank} onValueChange={setAddRank}>
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="tie_1">공동1위</SelectItem>
+                                                {Array.from({ length: 20 }, (_, i) => i + 1).map((rank) => (
+                                                    <SelectItem key={rank} value={String(rank)}>
+                                                        {rank}위
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label>획득성적 점수</Label>
@@ -683,7 +715,7 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
                                                                 <TableBody>
                                                                     {eventConfigs.map(config => (
                                                                         <TableRow key={config.id}>
-                                                                            <TableCell className="font-medium">{config.rank}위</TableCell>
+                                                                            <TableCell className="font-medium">{config.rank_label || formatRankLabel(config.rank)}</TableCell>
                                                                             <TableCell className="text-right">
                                                                                 {editingId === config.id ? (
                                                                                     <Input
