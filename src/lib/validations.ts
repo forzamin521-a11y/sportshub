@@ -20,6 +20,13 @@ export const scoreSchema = z.object({
     silver: z.number().int().min(0).optional(),
     bronze: z.number().int().min(0).optional(),
     rank: z.string().optional(),
+    expected_sub_event_total: z.number().min(0).optional(),
+    expected_record_type: z.string().optional(),
+    expected_confirmed_bonus: z.number().min(0).optional(),
+    expected_total_score: z.number().min(0).optional(),
+    expected_converted_score: z.number().min(0).optional(),
+    year: z.number().int().min(2020).max(2030).optional(),
+    match_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다").optional(),
 });
 
 export const sportSchema = z.object({

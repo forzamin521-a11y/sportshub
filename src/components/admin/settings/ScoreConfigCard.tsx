@@ -139,7 +139,7 @@ export function ScoreConfigCard({ sports: initialSports }: ScoreConfigCardProps)
                                             />
                                         ) : (
                                             <span className={changes.has(sport.id) ? "text-blue-600 font-medium" : ""}>
-                                                {getCurrentValue(sport).toLocaleString()}
+                                                {getCurrentValue(sport).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                                 {changes.has(sport.id) && (
                                                     <span className="text-muted-foreground ml-1 text-xs">
                                                         (수정됨)

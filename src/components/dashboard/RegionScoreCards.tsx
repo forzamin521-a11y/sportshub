@@ -28,7 +28,7 @@ export function RegionScoreCards({ cards }: { cards: ScoreCardProps[] }) {
                         </span>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{card.score.toLocaleString()}점</div>
+                        <div className="text-2xl font-bold">{card.score.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}점</div>
                         {card.isHost && (
                             <p className="text-xs text-muted-foreground">개최지</p>
                         )}

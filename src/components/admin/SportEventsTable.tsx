@@ -139,7 +139,7 @@ export function SportEventsTable({ sportId, sportName, events }: SportEventsTabl
                                                     {event.event_name}
                                                 </TableCell>
                                                 <TableCell className="text-right text-muted-foreground">
-                                                    {event.max_score?.toLocaleString() || "-"}
+                                                    {event.max_score?.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || "-"}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-1">

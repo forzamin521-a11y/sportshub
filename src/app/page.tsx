@@ -1,11 +1,20 @@
 import { getSheetData } from "@/lib/google-sheets";
-import { SHEET_NAMES, GYEONGGI_REGION_ID } from "@/lib/constants";
-import { Score, Region, Sport, SportEvent } from "@/types";
+import { SHEET_NAMES } from "@/lib/constants";
+import { CURRENT_YEAR } from "@/lib/constants";
+import { Region, Sport, SportEvent } from "@/types";
+import { parseScore, filterScoresByYear } from "@/lib/parse-scores";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
 export const dynamic = 'force-dynamic';
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const year = params.year ? Number(params.year) : CURRENT_YEAR;
+
   // Fetch necessary data
   const [scoresData, regionsData, sportsData, sportEventsData] = await Promise.all([
     getSheetData(SHEET_NAMES.SCORES),
@@ -14,24 +23,9 @@ export default async function Home() {
     getSheetData(SHEET_NAMES.SPORT_EVENTS),
   ]);
 
-  // Parse scores (only Gyeonggi for stats, all for ranking)
-  const scores: Score[] = scoresData.map((row: any) => ({
-    id: String(row.id),
-    sport_id: String(row.sport_id),
-    sport_event_id: row.sport_event_id ? String(row.sport_event_id) : undefined,
-    region_id: String(row.region_id),
-    division: String(row.division) as Score['division'],
-    expected_score: Number(row.expected_score) || 0,
-    actual_score: Number(row.actual_score) || 0,
-    actual_medal_score: Number(row.actual_medal_score) || 0,
-    converted_score: Number(row.converted_score) || 0,
-    confirmed_bonus: Number(row.confirmed_bonus) || 0,
-    total_score: Number(row.total_score) || 0,
-    gold: Number(row.gold) || 0,
-    silver: Number(row.silver) || 0,
-    bronze: Number(row.bronze) || 0,
-    rank: row.rank ? String(row.rank) : undefined,
-  }));
+  // Parse scores and filter by year
+  const allScores = scoresData.map((row: any) => parseScore(row));
+  const scores = filterScoresByYear(allScores, year);
 
   // Parse regions
   const regions: Region[] = regionsData.map((row: any) => ({

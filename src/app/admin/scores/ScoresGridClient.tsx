@@ -73,7 +73,7 @@ export function ScoresGridClient({ sports }: ScoresGridClientProps) {
                                                 <Target className="h-4 w-4 text-primary mb-1" />
                                                 <span className="text-xs text-muted-foreground">확정점수</span>
                                                 <span className="text-sm font-bold mt-0.5">
-                                                    {sport.max_score?.toLocaleString() || 0}
+                                                    {sport.max_score?.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || 0}
                                                 </span>
                                             </div>
                                             <div className="flex flex-col items-center p-2 rounded-lg bg-blue-500/5 border border-blue-500/10">

@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { GYEONGGI_REGION_ID, DIVISION_LIST } from "@/lib/constants";
+import { GYEONGGI_REGION_ID, DIVISION_LIST, AVAILABLE_YEARS, CURRENT_YEAR } from "@/lib/constants";
 import {
     Form,
     FormControl,
@@ -49,6 +49,8 @@ const scoreSchema = z.object({
     gold: z.number().int().min(0).optional(),
     silver: z.number().int().min(0).optional(),
     bronze: z.number().int().min(0).optional(),
+    year: z.number().int().min(2020).max(2030),
+    match_date: z.string().optional(),
 });
 
 interface ScoreFormProps {
@@ -123,6 +125,8 @@ export function ScoreForm({ initialData, sports, regions, onSuccess }: ScoreForm
             gold: initialData?.gold ?? 0,
             silver: initialData?.silver ?? 0,
             bronze: initialData?.bronze ?? 0,
+            year: initialData?.year ?? CURRENT_YEAR,
+            match_date: initialData?.match_date ?? "",
         },
     });
 
@@ -259,6 +263,51 @@ export function ScoreForm({ initialData, sports, regions, onSuccess }: ScoreForm
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                {/* 연도 및 경기일자 */}
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="year"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>대회 연도</FormLabel>
+                                <Select onValueChange={(val) => field.onChange(Number(val))} value={String(field.value)}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="연도 선택" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {AVAILABLE_YEARS.map((y) => (
+                                            <SelectItem key={y} value={String(y)}>
+                                                {y}년
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="match_date"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>경기일자 (선택)</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        type="date"
+                                        {...field}
+                                        value={field.value || ""}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+
                 <FormField
                     control={form.control}
                     name="sport_id"

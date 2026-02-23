@@ -6,6 +6,7 @@ import { Score, Sport, SportEvent } from "@/types";
 import { Medal, ChevronRight, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatOneDecimal } from "@/lib/number-format";
 
 interface MedalistDialogProps {
     open: boolean;
@@ -171,7 +172,7 @@ export function MedalistDialog({ open, onOpenChange, medalType, scores, regionId
                         <span className="text-3xl">{config.icon}</span>
                         <span className={config.color}>{config.title} 현황</span>
                         <Badge variant="secondary" className="ml-2 text-base">
-                            총 {totalMedals}개
+                            총 {formatOneDecimal(totalMedals)}개
                         </Badge>
                     </DialogTitle>
                 </DialogHeader>
@@ -204,7 +205,7 @@ export function MedalistDialog({ open, onOpenChange, medalType, scores, regionId
                                                 <span className="font-bold text-lg">{sport.sportName}</span>
                                             </div>
                                             <Badge className={`${config.color} text-lg px-3 py-1`} variant="secondary">
-                                                {sport.totalMedals}개
+                                                {formatOneDecimal(sport.totalMedals)}개
                                             </Badge>
                                         </button>
 
@@ -230,7 +231,7 @@ export function MedalistDialog({ open, onOpenChange, medalType, scores, regionId
                                                                     <span className="font-semibold">{division.divisionName}</span>
                                                                 </div>
                                                                 <Badge className={config.color} variant="outline">
-                                                                    {division.totalMedals}개
+                                                                    {formatOneDecimal(division.totalMedals)}개
                                                                 </Badge>
                                                             </button>
 
@@ -254,11 +255,11 @@ export function MedalistDialog({ open, onOpenChange, medalType, scores, regionId
                                                                             <div className="flex items-center gap-3">
                                                                                 {event.score.total_score && event.score.total_score > 0 && (
                                                                                     <span className="text-xs text-muted-foreground">
-                                                                                        {event.score.total_score.toLocaleString()}점
+                                                                                        {formatOneDecimal(event.score.total_score)}점
                                                                                     </span>
                                                                                 )}
                                                                                 <Badge className={`${config.color} font-bold`} variant="secondary">
-                                                                                    {event.medals}개
+                                                                                    {formatOneDecimal(event.medals)}개
                                                                                 </Badge>
                                                                             </div>
                                                                         </div>

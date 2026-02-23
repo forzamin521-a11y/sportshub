@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSheetData, appendSheetData } from '@/lib/google-sheets';
-import { SHEET_NAMES } from '@/lib/constants';
+import { SHEET_NAMES, DEFAULT_YEAR } from '@/lib/constants';
 import { RankScoreConfig } from '@/types';
+import { parseScore, filterScoresByYear } from '@/lib/parse-scores';
 
 // Helper function to calculate score from rank
 async function calculateScoreFromRank(
@@ -44,34 +45,18 @@ export async function GET(request: Request) {
     try {
         const rawData = await getSheetData(SHEET_NAMES.SCORES);
 
-        let scores = rawData.map((row) => ({
-            id: String(row.id),
-            sport_id: String(row.sport_id),
-            sport_event_id: row.sport_event_id ? String(row.sport_event_id) : undefined,
-            region_id: String(row.region_id),
-            division: String(row.division),
-            expected_rank: row.expected_rank ? String(row.expected_rank) : undefined,
-            expected_score: Number(row.expected_score),
-            expected_medal_score: row.expected_medal_score ? Number(row.expected_medal_score) : undefined,
-            actual_score: row.actual_score ? Number(row.actual_score) : undefined,
-            actual_medal_score: row.actual_medal_score ? Number(row.actual_medal_score) : undefined,
-            sub_event_total: row.sub_event_total ? Number(row.sub_event_total) : undefined,
-            converted_score: row.converted_score ? Number(row.converted_score) : undefined,
-            confirmed_bonus: row.confirmed_bonus ? Number(row.confirmed_bonus) : undefined,
-            record_type: row.record_type ? String(row.record_type) : undefined,
-            total_score: row.total_score ? Number(row.total_score) : undefined,
-            gold: row.gold ? Number(row.gold) : undefined,
-            silver: row.silver ? Number(row.silver) : undefined,
-            bronze: row.bronze ? Number(row.bronze) : undefined,
-            rank: row.rank ? String(row.rank) : undefined,
-            updated_at: row.updated_at ? String(row.updated_at) : undefined,
-        }));
+        let scores = rawData.map((row) => parseScore(row));
 
         // Filtering
         const { searchParams } = new URL(request.url);
+        const yearParam = searchParams.get('year');
         const regionId = searchParams.get('region_id');
         const sportId = searchParams.get('sport_id');
         const division = searchParams.get('division');
+
+        if (yearParam) {
+            scores = filterScoresByYear(scores, Number(yearParam));
+        }
         const sortBy = searchParams.get('sort_by');
         const sortOrder = searchParams.get('sort_order') === 'desc' ? -1 : 1;
 
@@ -113,7 +98,10 @@ export async function POST(request: Request) {
             actual_score, actual_medal_score,
             sub_event_total, converted_score,
             confirmed_bonus, record_type, total_score,
-            gold, silver, bronze, rank
+            gold, silver, bronze, rank,
+            expected_sub_event_total, expected_record_type,
+            expected_confirmed_bonus, expected_total_score, expected_converted_score,
+            year, match_date
         } = body;
 
         if (!sport_id || !region_id || !division) {
@@ -159,7 +147,10 @@ export async function POST(request: Request) {
             confirmed_bonus || '', record_type || '',
             total_score || '',
             gold || '', silver || '', bronze || '',
-            rank || '', updatedAt
+            rank || '', updatedAt,
+            expected_sub_event_total || '', expected_record_type || '',
+            expected_confirmed_bonus || '', expected_total_score || '', expected_converted_score || '',
+            year || DEFAULT_YEAR, match_date || ''
         ];
 
         await appendSheetData(SHEET_NAMES.SCORES, [newRow]);
@@ -174,7 +165,10 @@ export async function POST(request: Request) {
                 sub_event_total, converted_score,
                 confirmed_bonus, record_type, total_score,
                 gold, silver, bronze, rank,
-                updated_at: updatedAt
+                updated_at: updatedAt,
+                expected_sub_event_total, expected_record_type,
+                expected_confirmed_bonus, expected_total_score, expected_converted_score,
+                year: year || DEFAULT_YEAR, match_date
             }
         }, { status: 201 });
     } catch (error) {

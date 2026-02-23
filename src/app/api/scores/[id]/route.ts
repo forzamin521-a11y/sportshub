@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSheetData, updateSheetData, deleteSheetRow } from '@/lib/google-sheets';
-import { SHEET_NAMES } from '@/lib/constants';
+import { SHEET_NAMES, DEFAULT_YEAR } from '@/lib/constants';
 import { Score } from '@/types';
+import { parseScore } from '@/lib/parse-scores';
 
 // Helper function to calculate score from rank
 async function calculateScoreFromRank(
@@ -56,28 +57,7 @@ export async function GET(
             return NextResponse.json({ error: 'Score not found' }, { status: 404 });
         }
 
-        const score: Score = {
-            id: String(scoreRow.id),
-            sport_id: String(scoreRow.sport_id),
-            sport_event_id: scoreRow.sport_event_id ? String(scoreRow.sport_event_id) : undefined,
-            region_id: String(scoreRow.region_id),
-            division: String(scoreRow.division) as Score['division'],
-            expected_rank: scoreRow.expected_rank ? String(scoreRow.expected_rank) : undefined,
-            expected_score: Number(scoreRow.expected_score),
-            expected_medal_score: scoreRow.expected_medal_score ? Number(scoreRow.expected_medal_score) : undefined,
-            actual_score: scoreRow.actual_score ? Number(scoreRow.actual_score) : undefined,
-            actual_medal_score: scoreRow.actual_medal_score ? Number(scoreRow.actual_medal_score) : undefined,
-            sub_event_total: scoreRow.sub_event_total ? Number(scoreRow.sub_event_total) : undefined,
-            converted_score: scoreRow.converted_score ? Number(scoreRow.converted_score) : undefined,
-            confirmed_bonus: scoreRow.confirmed_bonus ? Number(scoreRow.confirmed_bonus) : undefined,
-            record_type: scoreRow.record_type ? String(scoreRow.record_type) : undefined,
-            total_score: scoreRow.total_score ? Number(scoreRow.total_score) : undefined,
-            gold: scoreRow.gold ? Number(scoreRow.gold) : undefined,
-            silver: scoreRow.silver ? Number(scoreRow.silver) : undefined,
-            bronze: scoreRow.bronze ? Number(scoreRow.bronze) : undefined,
-            rank: scoreRow.rank ? String(scoreRow.rank) : undefined,
-            updated_at: scoreRow.updated_at ? String(scoreRow.updated_at) : undefined,
-        };
+        const score: Score = parseScore(scoreRow);
 
         return NextResponse.json({ data: score });
     } catch (error) {
@@ -168,6 +148,13 @@ export async function PUT(
             bronze,
             rank: rank ?? '',
             updated_at: updatedAt,
+            expected_sub_event_total: body.expected_sub_event_total ?? (existingScore.expected_sub_event_total ? Number(existingScore.expected_sub_event_total) : ''),
+            expected_record_type: body.expected_record_type ?? (existingScore.expected_record_type ? String(existingScore.expected_record_type) : ''),
+            expected_confirmed_bonus: body.expected_confirmed_bonus ?? (existingScore.expected_confirmed_bonus ? Number(existingScore.expected_confirmed_bonus) : ''),
+            expected_total_score: body.expected_total_score ?? (existingScore.expected_total_score ? Number(existingScore.expected_total_score) : ''),
+            expected_converted_score: body.expected_converted_score ?? (existingScore.expected_converted_score ? Number(existingScore.expected_converted_score) : ''),
+            year: body.year ?? (existingScore.year ? Number(existingScore.year) : DEFAULT_YEAR),
+            match_date: body.match_date ?? (existingScore.match_date ? String(existingScore.match_date) : ''),
         };
 
         // Update Google Sheets (row index + 2 because of header row and 0-based index)
@@ -192,10 +179,17 @@ export async function PUT(
             updatedScore.bronze,
             updatedScore.rank,
             updatedScore.updated_at,
+            updatedScore.expected_sub_event_total,
+            updatedScore.expected_record_type,
+            updatedScore.expected_confirmed_bonus,
+            updatedScore.expected_total_score,
+            updatedScore.expected_converted_score,
+            updatedScore.year,
+            updatedScore.match_date,
         ];
 
         const sheetRow = rowIndex + 2; // +1 for header, +1 for 1-based index
-        const range = `A${sheetRow}:T${sheetRow}`; // T is the 20th column (updated_at)
+        const range = `A${sheetRow}:AA${sheetRow}`; // AA is the 27th column
         await updateSheetData(SHEET_NAMES.SCORES, range, [updatedRow]);
 
         return NextResponse.json({

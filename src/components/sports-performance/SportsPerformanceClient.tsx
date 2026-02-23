@@ -4,6 +4,7 @@ import { useMemo, useState, Fragment } from "react";
 import { Sport, Score, SportEvent } from "@/types";
 import { BarChart3, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { formatOneDecimal } from "@/lib/number-format";
 
 interface SportsPerformanceClientProps {
     scores: Score[];
@@ -82,20 +83,6 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
 
         return Object.values(stats).sort((a, b) => b.totalScore - a.totalScore);
     }, [scores, sports, sportEvents]);
-
-    // 종목별 그룹화 (확장/축소용)
-    const sportGroups = useMemo(() => {
-        const groups: Record<string, typeof sportDivisionStats> = {};
-
-        sportDivisionStats.forEach(stat => {
-            if (!groups[stat.sportId]) {
-                groups[stat.sportId] = [];
-            }
-            groups[stat.sportId].push(stat);
-        });
-
-        return groups;
-    }, [sportDivisionStats]);
 
     // 검색 필터링
     const filteredStats = useMemo(() => {
@@ -213,7 +200,7 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
                             </tr>
                         </thead>
                         <tbody>
-                            {Object.entries(filteredSportGroups).map(([sportId, divisions], sportIndex) => {
+                            {Object.entries(filteredSportGroups).map(([sportId, divisions]) => {
                                 const isExpanded = expandedSports.has(sportId);
                                 const sportName = divisions[0]?.sportName || sportId;
 
@@ -244,25 +231,25 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
                                                 {sportName} ({divisions.length}개 종별)
                                             </td>
                                             <td className="p-3 text-right font-bold text-blue-600">
-                                                {sportTotal.actualScore.toLocaleString()}
+                                                {formatOneDecimal(sportTotal.actualScore)}
                                             </td>
                                             <td className="p-3 text-right font-bold">
-                                                {sportTotal.totalScore.toLocaleString()}
+                                                {formatOneDecimal(sportTotal.totalScore)}
                                             </td>
                                             <td className="p-3 text-center font-bold medal-gold">
-                                                {sportTotal.gold}
+                                                {formatOneDecimal(sportTotal.gold)}
                                             </td>
                                             <td className="p-3 text-center font-bold medal-silver">
-                                                {sportTotal.silver}
+                                                {formatOneDecimal(sportTotal.silver)}
                                             </td>
                                             <td className="p-3 text-center font-bold medal-bronze">
-                                                {sportTotal.bronze}
+                                                {formatOneDecimal(sportTotal.bronze)}
                                             </td>
                                             <td className="p-3"></td>
                                         </tr>
 
                                         {/* 종별 및 세부종목 행 */}
-                                        {isExpanded && divisions.map((stat, divIndex) => (
+                                        {isExpanded && divisions.map((stat) => (
                                             <Fragment key={`${stat.sportId}-${stat.division}`}>
                                                 {/* 종별 합계 행 */}
                                                 <tr className="bg-accent/30 border-b border-border/20">
@@ -277,24 +264,24 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
                                                         {stat.eventDetails.length > 0 ? `${stat.eventDetails.length}개 세부종목` : '세부종목 없음'}
                                                     </td>
                                                     <td className="p-3 text-right font-semibold text-blue-600">
-                                                        {stat.actualScore.toLocaleString()}
+                                                        {formatOneDecimal(stat.actualScore)}
                                                     </td>
                                                     <td className="p-3 text-right font-bold">
-                                                        {stat.totalScore.toLocaleString()}
+                                                        {formatOneDecimal(stat.totalScore)}
                                                     </td>
                                                     <td className="p-3 text-center">
                                                         {stat.gold > 0 && (
-                                                            <span className="font-bold medal-gold">{stat.gold}</span>
+                                                            <span className="font-bold medal-gold">{formatOneDecimal(stat.gold)}</span>
                                                         )}
                                                     </td>
                                                     <td className="p-3 text-center">
                                                         {stat.silver > 0 && (
-                                                            <span className="font-bold medal-silver">{stat.silver}</span>
+                                                            <span className="font-bold medal-silver">{formatOneDecimal(stat.silver)}</span>
                                                         )}
                                                     </td>
                                                     <td className="p-3 text-center">
                                                         {stat.bronze > 0 && (
-                                                            <span className="font-bold medal-bronze">{stat.bronze}</span>
+                                                            <span className="font-bold medal-bronze">{formatOneDecimal(stat.bronze)}</span>
                                                         )}
                                                     </td>
                                                     <td className="p-3 text-center text-xs text-muted-foreground">
@@ -317,24 +304,24 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
                                                             </span>
                                                         </td>
                                                         <td className="p-3 text-right text-sm text-blue-600">
-                                                            {event.actualScore.toLocaleString()}
+                                                            {formatOneDecimal(event.actualScore)}
                                                         </td>
                                                         <td className="p-3 text-right text-sm font-semibold">
-                                                            {event.totalScore.toLocaleString()}
+                                                            {formatOneDecimal(event.totalScore)}
                                                         </td>
                                                         <td className="p-3 text-center text-sm">
                                                             {event.gold > 0 && (
-                                                                <span className="medal-gold">{event.gold}</span>
+                                                                <span className="medal-gold">{formatOneDecimal(event.gold)}</span>
                                                             )}
                                                         </td>
                                                         <td className="p-3 text-center text-sm">
                                                             {event.silver > 0 && (
-                                                                <span className="medal-silver">{event.silver}</span>
+                                                                <span className="medal-silver">{formatOneDecimal(event.silver)}</span>
                                                             )}
                                                         </td>
                                                         <td className="p-3 text-center text-sm">
                                                             {event.bronze > 0 && (
-                                                                <span className="medal-bronze">{event.bronze}</span>
+                                                                <span className="medal-bronze">{formatOneDecimal(event.bronze)}</span>
                                                             )}
                                                         </td>
                                                         <td className="p-3 text-center">
@@ -362,19 +349,19 @@ export function SportsPerformanceClient({ scores, sports, sportEvents }: SportsP
                             <tr className="bg-primary/10 font-bold border-t-2 border-primary/20">
                                 <td className="p-3" colSpan={4}>전체 합계</td>
                                 <td className="p-3 text-right text-blue-600">
-                                    {filteredStats.reduce((sum, s) => sum + s.actualScore, 0).toLocaleString()}
+                                    {formatOneDecimal(filteredStats.reduce((sum, s) => sum + s.actualScore, 0))}
                                 </td>
                                 <td className="p-3 text-right">
-                                    {filteredStats.reduce((sum, s) => sum + s.totalScore, 0).toLocaleString()}
+                                    {formatOneDecimal(filteredStats.reduce((sum, s) => sum + s.totalScore, 0))}
                                 </td>
                                 <td className="p-3 text-center medal-gold">
-                                    {filteredStats.reduce((sum, s) => sum + s.gold, 0)}
+                                    {formatOneDecimal(filteredStats.reduce((sum, s) => sum + s.gold, 0))}
                                 </td>
                                 <td className="p-3 text-center medal-silver">
-                                    {filteredStats.reduce((sum, s) => sum + s.silver, 0)}
+                                    {formatOneDecimal(filteredStats.reduce((sum, s) => sum + s.silver, 0))}
                                 </td>
                                 <td className="p-3 text-center medal-bronze">
-                                    {filteredStats.reduce((sum, s) => sum + s.bronze, 0)}
+                                    {formatOneDecimal(filteredStats.reduce((sum, s) => sum + s.bronze, 0))}
                                 </td>
                                 <td className="p-3"></td>
                             </tr>

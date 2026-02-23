@@ -1,3 +1,14 @@
+// 연도별 데이터 관리
+export const DEFAULT_YEAR = 2025; // 기존 데이터 기본 연도
+export const CURRENT_YEAR = 2026; // 현재 대회 연도
+export const AVAILABLE_YEARS = [2025, 2026] as const;
+export const YEAR_FESTIVAL_MAP: Record<number, number> = { 2025: 106, 2026: 107 };
+
+export function getFestivalLabel(year: number): string {
+    const festival = YEAR_FESTIVAL_MAP[year];
+    return festival ? `제${festival}회 전국체육대회` : `${year}년 전국체육대회`;
+}
+
 export const SHEET_NAMES = {
     CONFIG: 'config',
     REGIONS: 'regions',

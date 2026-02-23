@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
@@ -9,8 +10,8 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "제106회 전국체육대회 성적 분석 대시보드",
-  description: "경기도체육회 - 제106회 전국체육대회 성적 데이터 분석 및 관리 시스템",
+  title: "전국체육대회 성적 분석 대시보드",
+  description: "경기도체육회 - 전국체육대회 성적 데이터 분석 및 관리 시스템",
 };
 
 export default function RootLayout({
@@ -23,7 +24,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <NextAuthProvider>
           <div className="flex min-h-screen flex-col">
-            <Header />
+            <Suspense fallback={null}>
+              <Header />
+            </Suspense>
             <main className="flex-1 container mx-auto py-6 px-4">
               {children}
             </main>

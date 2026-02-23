@@ -132,7 +132,7 @@ export default function RegionsAnalysisPage() {
                             <CardTitle className="text-sm font-medium">예상 총점</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{totalExpected.toLocaleString()}</div>
+                            <div className="text-2xl font-bold">{totalExpected.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
                             <p className="text-xs text-muted-foreground mt-1">점</p>
                         </CardContent>
                     </Card>
@@ -142,9 +142,9 @@ export default function RegionsAnalysisPage() {
                             <CardTitle className="text-sm font-medium">실제 총점</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-blue-600">{totalActual.toLocaleString()}</div>
+                            <div className="text-2xl font-bold text-blue-600">{totalActual.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {totalExpected > 0 ? `달성률: ${((totalActual / totalExpected) * 100).toFixed(1)}%` : ''}
+                                {totalExpected > 0 ? `달성률: ${((totalActual / totalExpected) * 100).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : ''}
                             </p>
                         </CardContent>
                     </Card>
@@ -154,7 +154,7 @@ export default function RegionsAnalysisPage() {
                             <CardTitle className="text-sm font-medium">총 메달 수</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-amber-600">{totalMedals.toLocaleString()}</div>
+                            <div className="text-2xl font-bold text-amber-600">{totalMedals.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
                             <p className="text-xs text-muted-foreground mt-1">개</p>
                         </CardContent>
                     </Card>
@@ -224,9 +224,9 @@ export default function RegionsAnalysisPage() {
                                         {scores.map((score, index) => (
                                             <tr key={score.id || index} className="border-b">
                                                 <td className="p-3">{score.sport_name}</td>
-                                                <td className="p-3 text-center">{score.expected_score?.toLocaleString() || '-'}</td>
+                                                <td className="p-3 text-center">{score.expected_score?.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || '-'}</td>
                                                 <td className="p-3 text-center font-semibold text-blue-600">
-                                                    {score.actual_score?.toLocaleString() || '-'}
+                                                    {score.actual_score?.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || '-'}
                                                 </td>
                                                 <td className="p-3 text-center">{score.gold || '-'}</td>
                                                 <td className="p-3 text-center">{score.silver || '-'}</td>

@@ -3,22 +3,10 @@
 import { useState, useEffect } from "react";
 import { Sport, SportEvent, Score, Region } from "@/types";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ChevronDown, ChevronRight, Trophy, Target, Edit, RefreshCw, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Trophy, Target, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { RegionScoresDialog } from "./RegionScoresDialog";
-import { toast } from "sonner";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useRouter } from "next/navigation";
 
 interface ScoreDetailClientProps {
     sport: Sport;
@@ -33,12 +21,9 @@ export function ScoreDetailClient({
     initialScores,
     regions,
 }: ScoreDetailClientProps) {
-    const router = useRouter();
     const [expandedDivisions, setExpandedDivisions] = useState<Set<string>>(new Set());
     const [selectedEvent, setSelectedEvent] = useState<SportEvent | null>(null);
     const [scores, setScores] = useState(initialScores);
-    const [recalculating, setRecalculating] = useState(false);
-    const [showRecalculateDialog, setShowRecalculateDialog] = useState(false);
 
     // Update scores when initialScores changes (after router.refresh())
     useEffect(() => {
@@ -74,50 +59,6 @@ export function ScoreDetailClient({
         setSelectedEvent(event);
     };
 
-    const handleRecalculateAll = async () => {
-        setRecalculating(true);
-        setSelectedEvent(null);
-
-        try {
-            const res = await fetch("/api/scores/save-and-recalculate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    sport_id: sport.id,
-                    mode: "recalculate",
-                }),
-            });
-
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || "재계산 실패");
-            }
-
-            const result = await res.json();
-
-            // Update local state with all recalculated scores
-            setScores(result.data.scores);
-
-            toast.success(
-                `전체 환산점수가 재계산되었습니다.\n알점수: ${result.data.alphaScore.toFixed(4)}\n업데이트: ${result.data.updatedCount}개 점수`
-            );
-
-            router.refresh();
-        } catch (error: any) {
-            console.error(error);
-            const errorMessage = error?.message || "환산점수 재계산 중 오류가 발생했습니다.";
-
-            if (errorMessage.includes("한도") || errorMessage.includes("quota") || errorMessage.includes("rate limit") || errorMessage.includes("429")) {
-                toast.error("Google Sheets API 한도 초과. 잠시 후 다시 시도해주세요.");
-            } else {
-                toast.error(errorMessage);
-            }
-        } finally {
-            setRecalculating(false);
-            setShowRecalculateDialog(false);
-        }
-    };
-
     return (
         <div className="space-y-5">
             {/* Header */}
@@ -133,18 +74,6 @@ export function ScoreDetailClient({
                         <p className="text-sm text-muted-foreground mt-0.5">{sport.sub_name}</p>
                     )}
                 </div>
-                <Button
-                    onClick={() => setShowRecalculateDialog(true)}
-                    disabled={recalculating || scores.length === 0}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                    {recalculating ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                    )}
-                    전체 환산점수 재계산
-                </Button>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Target className="h-4 w-4" />
                     <span>확정점수: {sport.max_score}</span>
@@ -245,44 +174,12 @@ export function ScoreDetailClient({
                     allScores={scores}
                     open={!!selectedEvent}
                     onOpenChange={(open) => !open && setSelectedEvent(null)}
-                    onScoresUpdate={(allSportScores) => {
-                        // Replace all scores with recalculated data from server
-                        setScores(allSportScores);
+                    onScoresUpdate={(allSportScores, updatedYear) => {
+                        const otherYears = scores.filter((s) => (s.year ?? CURRENT_YEAR) !== updatedYear);
+                        setScores([...otherYears, ...allSportScores]);
                     }}
                 />
             )}
-
-            {/* Recalculate Confirmation Dialog */}
-            <AlertDialog open={showRecalculateDialog} onOpenChange={setShowRecalculateDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>전체 환산점수 재계산</AlertDialogTitle>
-                        <AlertDialogDescription asChild>
-                            <div className="space-y-2">
-                                <div>현재까지 입력된 점수를 기준으로 모든 환산점수를 재계산합니다.</div>
-                                <div className="font-semibold text-orange-600">
-                                    ⚠️ 기존의 환산점수 데이터는 덮어씌워지며, 이 작업은 되돌릴 수 없습니다.
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    • 대상: {sport.name}의 모든 세부종목 ({scores.length}개 점수)
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                    • 재계산 항목: 환산점수, 신기록가산, 총점
-                                </div>
-                            </div>
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>취소</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleRecalculateAll}
-                            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                        >
-                            재계산 실행
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </div>
     );
 }

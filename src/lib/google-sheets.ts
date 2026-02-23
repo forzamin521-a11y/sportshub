@@ -10,9 +10,30 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID!;
+const CACHE_TTL_MS = 15000;
 
 export interface SheetRow {
     [key: string]: string | number | boolean;
+}
+
+interface CacheEntry {
+    data: SheetRow[];
+    expiresAt: number;
+}
+
+const sheetCache = new Map<string, CacheEntry>();
+const inFlightReads = new Map<string, Promise<SheetRow[]>>();
+
+function clearSheetCache() {
+    sheetCache.clear();
+    inFlightReads.clear();
+}
+
+function isRateLimitError(error: unknown): boolean {
+    if (!error || typeof error !== "object") return false;
+    const e = error as { code?: number; message?: string };
+    const message = e.message ?? "";
+    return e.code === 429 || message.includes("quota") || message.includes("rate limit");
 }
 
 export async function getSheetData(
@@ -20,41 +41,68 @@ export async function getSheetData(
     range?: string
 ): Promise<SheetRow[]> {
     const fullRange = range ? `${sheetName}!${range}` : sheetName;
+    const now = Date.now();
+    const cached = sheetCache.get(fullRange);
+
+    if (cached && cached.expiresAt > now) {
+        return cached.data;
+    }
+
+    const pending = inFlightReads.get(fullRange);
+    if (pending) return pending;
 
     if (!SPREADSHEET_ID) {
         console.warn("GOOGLE_SPREADSHEET_ID is missing. Running in mock mode.");
         return []; // Return mock data or empty array if not configured
     }
 
-    try {
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: fullRange,
-        });
-
-        const rows = response.data.values;
-        if (!rows || rows.length === 0) return [];
-
-        const headers = rows[0] as string[];
-        // Ensure all rows have enough columns corresponding to headers
-        return rows.slice(1).map((row) => {
-            const obj: SheetRow = {};
-            headers.forEach((header, index) => {
-                obj[header] = row[index] ?? '';
+    const fetchPromise = (async () => {
+        try {
+            const response = await sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID,
+                range: fullRange,
             });
-            return obj;
-        });
 
-    } catch (error: any) {
-        console.error(`Error reading sheet ${sheetName}:`, error);
+            const rows = response.data.values;
+            if (!rows || rows.length === 0) {
+                sheetCache.set(fullRange, {
+                    data: [],
+                    expiresAt: Date.now() + CACHE_TTL_MS,
+                });
+                return [];
+            }
 
-        // API 한도 에러 체크
-        if (error?.code === 429 || error?.message?.includes('quota') || error?.message?.includes('rate limit')) {
-            throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
+            const headers = rows[0] as string[];
+            const data = rows.slice(1).map((row) => {
+                const obj: SheetRow = {};
+                headers.forEach((header, index) => {
+                    obj[header] = row[index] ?? '';
+                });
+                return obj;
+            });
+
+            sheetCache.set(fullRange, {
+                data,
+                expiresAt: Date.now() + CACHE_TTL_MS,
+            });
+
+            return data;
+        } catch (error: unknown) {
+            console.error(`Error reading sheet ${sheetName}:`, error);
+
+            // API 한도 에러 체크
+            if (isRateLimitError(error)) {
+                throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
+            }
+
+            throw error;
+        } finally {
+            inFlightReads.delete(fullRange);
         }
+    })();
 
-        throw error;
-    }
+    inFlightReads.set(fullRange, fetchPromise);
+    return fetchPromise;
 }
 
 export async function appendSheetData(
@@ -75,11 +123,12 @@ export async function appendSheetData(
                 values,
             },
         });
-    } catch (error: any) {
+        clearSheetCache();
+    } catch (error: unknown) {
         console.error(`Error appending to sheet ${sheetName}:`, error);
 
         // API 한도 에러 체크
-        if (error?.code === 429 || error?.message?.includes('quota') || error?.message?.includes('rate limit')) {
+        if (isRateLimitError(error)) {
             throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
         }
 
@@ -103,11 +152,12 @@ export async function updateSheetData(
                 values,
             }
         });
-    } catch (error: any) {
+        clearSheetCache();
+    } catch (error: unknown) {
         console.error(`Error updating sheet ${sheetName}:`, error);
 
         // API 한도 에러 체크
-        if (error?.code === 429 || error?.message?.includes('quota') || error?.message?.includes('rate limit')) {
+        if (isRateLimitError(error)) {
             throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
         }
 
@@ -133,10 +183,11 @@ export async function batchUpdateSheetData(
                 })),
             },
         });
-    } catch (error: any) {
+        clearSheetCache();
+    } catch (error: unknown) {
         console.error(`Error batch updating sheet ${sheetName}:`, error);
 
-        if (error?.code === 429 || error?.message?.includes('quota') || error?.message?.includes('rate limit')) {
+        if (isRateLimitError(error)) {
             throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
         }
 
@@ -186,11 +237,12 @@ export async function deleteSheetRow(
                 ],
             },
         });
-    } catch (error: any) {
+        clearSheetCache();
+    } catch (error: unknown) {
         console.error(`Error deleting row from sheet ${sheetName}:`, error);
 
         // API 한도 에러 체크
-        if (error?.code === 429 || error?.message?.includes('quota') || error?.message?.includes('rate limit')) {
+        if (isRateLimitError(error)) {
             throw new Error('Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요.');
         }
 

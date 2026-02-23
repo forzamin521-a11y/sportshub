@@ -161,7 +161,7 @@ export const getColumns = (
         header: "예상 득점",
         cell: ({ row }) => {
             const amount = parseFloat(row.getValue("expected_score") || "0");
-            return <div className="text-center">{amount.toLocaleString()}</div>;
+            return <div className="text-center">{amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
         },
     },
     {
@@ -171,7 +171,7 @@ export const getColumns = (
             const value = row.getValue("actual_score");
             if (value === undefined || value === null) return <div className="text-center">-</div>;
             const amount = parseFloat(value as string);
-            return <div className="font-semibold text-blue-600 text-center">{amount.toLocaleString()}</div>;
+            return <div className="font-semibold text-blue-600 text-center">{amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
         },
     },
     {
@@ -181,7 +181,7 @@ export const getColumns = (
             const value = row.getValue("total_score");
             if (value === undefined || value === null) return <div className="text-center">-</div>;
             const amount = parseFloat(value as string);
-            return <div className="font-bold text-green-600 text-center">{amount.toLocaleString()}</div>;
+            return <div className="font-bold text-green-600 text-center">{amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
         },
     },
     {
@@ -198,8 +198,8 @@ export const getColumns = (
                     </div>
                 );
             }
-            const amount = parseFloat(value as any);
-            return <div className="text-center font-medium text-purple-600">{amount.toLocaleString()}</div>;
+            const amount = Number(value);
+            return <div className="text-center font-medium text-purple-600">{amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
         },
     },
     {
@@ -210,8 +210,45 @@ export const getColumns = (
             if (value === undefined || value === null) {
                 return <div className="text-center text-muted-foreground">-</div>;
             }
-            const amount = parseFloat(value as any);
-            return <div className="text-center font-bold text-indigo-600">{amount.toFixed(2)}</div>;
+            const amount = Number(value);
+            return <div className="text-center font-bold text-indigo-600">{amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
+        },
+    },
+    {
+        accessorKey: "expected_total_score",
+        header: "예상총점",
+        cell: ({ row }) => {
+            const value = row.original.expected_total_score;
+            if (value === undefined || value === null || value === 0) {
+                return <div className="text-center text-muted-foreground">-</div>;
+            }
+            return <div className="text-center font-semibold text-emerald-600">{value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
+        },
+    },
+    {
+        accessorKey: "expected_converted_score",
+        header: "예상환산",
+        cell: ({ row }) => {
+            const value = row.original.expected_converted_score;
+            if (value === undefined || value === null || value === 0) {
+                return <div className="text-center text-muted-foreground">-</div>;
+            }
+            return <div className="text-center font-medium text-emerald-600">{value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
+        },
+    },
+    {
+        id: "score_diff",
+        header: "차이",
+        cell: ({ row }) => {
+            const actual = row.original.total_score;
+            const expected = row.original.expected_total_score;
+            if (!actual || !expected) {
+                return <div className="text-center text-muted-foreground">-</div>;
+            }
+            const diff = actual - expected;
+            const diffColor = diff > 0 ? "text-blue-600" : diff < 0 ? "text-red-600" : "text-gray-500";
+            const sign = diff > 0 ? "+" : "";
+            return <div className={`text-center font-bold ${diffColor}`}>{sign}{diff.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
         },
     },
     {

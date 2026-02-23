@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSheetData, appendSheetData, batchUpdateSheetData } from "@/lib/google-sheets";
-import { SHEET_NAMES } from "@/lib/constants";
-import { Score, Sport } from "@/types";
+import { SHEET_NAMES, DEFAULT_YEAR, CURRENT_YEAR } from "@/lib/constants";
+import { Score } from "@/types";
 import { DEFAULT_RECORD_TYPES } from "@/lib/record-types";
+import { parseScore as parseScoreBase, scoreToRow as scoreToRowBase } from "@/lib/parse-scores";
 
 interface ScoreWithRow extends Score {
     rowIndex: number; // 1-indexed sheet row (header=1, data starts at 2)
@@ -20,60 +21,22 @@ interface EventScoreInput {
     actual_score?: number;
     actual_medal_score?: number;
     record_type?: string;
+    expected_record_type?: string;
     rank?: string;
     gold?: number;
     silver?: number;
     bronze?: number;
+    match_date?: string;
 }
 
 function scoreToRow(score: ScoreWithRow): (string | number)[] {
-    return [
-        score.id,
-        score.sport_id,
-        score.sport_event_id ?? '',
-        score.region_id,
-        score.division,
-        score.expected_rank ?? '',
-        score.expected_score ?? 0,
-        score.expected_medal_score ?? '',
-        score.actual_score ?? '',
-        score.actual_medal_score ?? '',
-        score.sub_event_total ?? '',
-        score.converted_score ?? '',
-        score.confirmed_bonus ?? '',
-        score.record_type ?? '',
-        score.total_score ?? '',
-        score.gold ?? '',
-        score.silver ?? '',
-        score.bronze ?? '',
-        score.rank ?? '',
-        score.updated_at ?? '',
-    ];
+    return scoreToRowBase(score);
 }
 
-function parseScore(row: any, index: number): ScoreWithRow {
+function parseScore(row: unknown, index: number): ScoreWithRow {
     return {
+        ...parseScoreBase(row),
         rowIndex: index + 2, // +2: header is row 1, data starts at row 2
-        id: String(row.id),
-        sport_id: String(row.sport_id),
-        sport_event_id: row.sport_event_id ? String(row.sport_event_id) : undefined,
-        region_id: String(row.region_id),
-        division: row.division as Score["division"],
-        expected_rank: row.expected_rank ? String(row.expected_rank) : undefined,
-        expected_score: row.expected_score != null && row.expected_score !== '' ? Number(row.expected_score) : 0,
-        expected_medal_score: row.expected_medal_score != null && row.expected_medal_score !== '' ? Number(row.expected_medal_score) : undefined,
-        actual_score: row.actual_score != null && row.actual_score !== '' ? Number(row.actual_score) : undefined,
-        actual_medal_score: row.actual_medal_score != null && row.actual_medal_score !== '' ? Number(row.actual_medal_score) : undefined,
-        sub_event_total: row.sub_event_total != null && row.sub_event_total !== '' ? Number(row.sub_event_total) : undefined,
-        converted_score: row.converted_score != null && row.converted_score !== '' ? Number(row.converted_score) : undefined,
-        confirmed_bonus: row.confirmed_bonus != null && row.confirmed_bonus !== '' ? Number(row.confirmed_bonus) : undefined,
-        record_type: row.record_type ? String(row.record_type) : undefined,
-        total_score: row.total_score != null && row.total_score !== '' ? Number(row.total_score) : undefined,
-        gold: row.gold != null && row.gold !== '' ? Number(row.gold) : undefined,
-        silver: row.silver != null && row.silver !== '' ? Number(row.silver) : undefined,
-        bronze: row.bronze != null && row.bronze !== '' ? Number(row.bronze) : undefined,
-        rank: row.rank ? String(row.rank) : undefined,
-        updated_at: row.updated_at ? String(row.updated_at) : undefined,
     };
 }
 
@@ -94,12 +57,16 @@ export async function POST(request: Request) {
             mode,
             sport_event_id,
             sub_event_total,
+            expected_sub_event_total,
+            year,
             event_scores,
         }: {
             sport_id: string;
             mode: "save" | "recalculate";
             sport_event_id?: string;
             sub_event_total?: number;
+            expected_sub_event_total?: number;
+            year?: number;
             event_scores?: EventScoreInput[];
         } = body;
 
@@ -132,6 +99,7 @@ export async function POST(request: Request) {
             );
         }
         const maxScore = Number(sport.max_score) || 0;
+        const targetYear = Number(year) || CURRENT_YEAR;
 
         // 4. Parse all scores with row indices
         const allScores: ScoreWithRow[] = scoresRawData.map((row, index) =>
@@ -139,7 +107,9 @@ export async function POST(request: Request) {
         );
 
         // Filter to this sport's scores (by sport_event_id matching sport_id prefix, or by sport_id)
-        let sportScores = allScores.filter((s) => s.sport_id === sport_id);
+        const sportScores = allScores.filter(
+            (s) => s.sport_id === sport_id && (s.year ?? DEFAULT_YEAR) === targetYear
+        );
 
         // 5. Build record types map for O(1) lookup
         const recordTypesMap = new Map(
@@ -157,7 +127,8 @@ export async function POST(request: Request) {
                 const existing = sportScores.find(
                     (s) =>
                         s.sport_event_id === sport_event_id &&
-                        s.region_id === input.region_id
+                        s.region_id === input.region_id &&
+                        (s.year ?? DEFAULT_YEAR) === targetYear
                 );
 
                 if (existing) {
@@ -168,11 +139,15 @@ export async function POST(request: Request) {
                     existing.actual_score = input.actual_score;
                     existing.actual_medal_score = input.actual_medal_score;
                     existing.record_type = input.record_type;
+                    existing.expected_record_type = input.expected_record_type;
                     existing.rank = input.rank;
                     existing.gold = input.gold;
                     existing.silver = input.silver;
                     existing.bronze = input.bronze;
                     existing.sub_event_total = sub_event_total;
+                    existing.expected_sub_event_total = expected_sub_event_total;
+                    existing.match_date = input.match_date;
+                    existing.year = targetYear;
                     existing.updated_at = now;
                 } else {
                     // Only create if there's meaningful data
@@ -194,12 +169,16 @@ export async function POST(request: Request) {
                             actual_score: input.actual_score,
                             actual_medal_score: input.actual_medal_score,
                             record_type: input.record_type,
+                            expected_record_type: input.expected_record_type,
                             rank: input.rank,
                             gold: input.gold,
                             silver: input.silver,
                             bronze: input.bronze,
+                            match_date: input.match_date,
                             sub_event_total: sub_event_total,
+                            expected_sub_event_total: expected_sub_event_total,
                             updated_at: now,
+                            year: targetYear,
                         };
                         newScores.push(newScore);
                         sportScores.push(newScore);
@@ -215,9 +194,18 @@ export async function POST(request: Request) {
                         s.sub_event_total = sub_event_total;
                     });
             }
+
+            // Update expected_sub_event_total for ALL scores in this event
+            if (expected_sub_event_total !== undefined) {
+                sportScores
+                    .filter((s) => s.sport_event_id === sport_event_id)
+                    .forEach((s) => {
+                        s.expected_sub_event_total = expected_sub_event_total;
+                    });
+            }
         }
 
-        // 7. Calculate alphaScore
+        // 7. Calculate alphaScore (actual)
         const subEventTotals = new Map<string, number>();
         sportScores.forEach((score) => {
             if (score.sport_event_id && score.sub_event_total) {
@@ -231,7 +219,21 @@ export async function POST(request: Request) {
         const alphaScore =
             totalNationalScore > 0 ? maxScore / totalNationalScore : 0;
 
-        // 8. Recalculate ALL scores for this sport
+        // 7b. Calculate expectedAlphaScore (expected_sub_event_total only, no fallback)
+        const expectedSubEventTotals = new Map<string, number>();
+        sportScores.forEach((score) => {
+            if (score.sport_event_id && score.expected_sub_event_total) {
+                expectedSubEventTotals.set(score.sport_event_id, score.expected_sub_event_total);
+            }
+        });
+        const expectedTotalNationalScore = Array.from(expectedSubEventTotals.values()).reduce(
+            (sum, v) => sum + v,
+            0
+        );
+        const expectedAlphaScore =
+            expectedTotalNationalScore > 0 ? maxScore / expectedTotalNationalScore : 0;
+
+        // 8. Recalculate ALL scores for this sport (actual + expected)
         sportScores.forEach((score) => {
             const actualScore = score.actual_score || 0;
             const actualMedalScore = score.actual_medal_score || 0;
@@ -252,6 +254,28 @@ export async function POST(request: Request) {
             score.converted_score = convertedScore;
             score.confirmed_bonus = confirmedBonus;
             score.total_score = totalScore;
+
+            // Expected calculations
+            const expectedScore = score.expected_score || 0;
+            const expectedMedalScore = score.expected_medal_score || 0;
+
+            // expected_converted_score = (예상득점 × 예상알점수) + 예상메달득점
+            const expectedConvertedScore = expectedScore * expectedAlphaScore + expectedMedalScore;
+
+            // expected_confirmed_bonus = 예상득점 × (예상신기록가산배율 / 100)
+            const expectedRecordType = recordTypesMap.get(score.expected_record_type || "");
+            const expectedConfirmedBonus =
+                expectedRecordType && expectedRecordType.bonus_percentage > 0
+                    ? expectedScore * (expectedRecordType.bonus_percentage / 100)
+                    : 0;
+
+            // expected_total_score = 예상환산점수 + 예상확정자가산
+            const expectedTotalScore = expectedConvertedScore + expectedConfirmedBonus;
+
+            score.expected_converted_score = expectedConvertedScore;
+            score.expected_confirmed_bonus = expectedConfirmedBonus;
+            score.expected_total_score = expectedTotalScore;
+
             score.updated_at = now;
         });
 
@@ -269,7 +293,7 @@ export async function POST(request: Request) {
                 appendRows.push(row);
             } else {
                 updatePairs.push({
-                    range: `A${score.rowIndex}:T${score.rowIndex}`,
+                    range: `A${score.rowIndex}:AA${score.rowIndex}`,
                     values: [row],
                 });
             }
@@ -292,9 +316,12 @@ export async function POST(request: Request) {
         await Promise.all(writePromises);
 
         // 11. Build response scores (without internal fields)
-        const responseScores: Score[] = sportScores.map(
-            ({ rowIndex, isNew, ...score }) => score
-        );
+        const responseScores: Score[] = sportScores.map((score) => {
+            const response = { ...score };
+            delete response.rowIndex;
+            delete response.isNew;
+            return response;
+        });
 
         return NextResponse.json({
             message:
@@ -304,19 +331,21 @@ export async function POST(request: Request) {
             data: {
                 scores: responseScores,
                 alphaScore,
+                expectedAlphaScore,
                 totalNationalScore,
+                expectedTotalNationalScore,
                 maxScore,
                 updatedCount: updatePairs.length,
                 newCount: appendRows.length,
             },
         });
-    } catch (error: any) {
+    } catch (error) {
         console.error("Error in save-and-recalculate:", error);
 
+        const message = error instanceof Error ? error.message : "";
         if (
-            error?.message?.includes("한도") ||
-            error?.message?.includes("quota") ||
-            error?.code === 429
+            message.includes("한도") ||
+            message.includes("quota")
         ) {
             return NextResponse.json(
                 { error: "Google Sheets API 한도 초과: 잠시 후 다시 시도해주세요." },

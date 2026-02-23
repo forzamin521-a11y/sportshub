@@ -102,7 +102,7 @@ export default function CategoriesAnalysisPage() {
                                             <CardTitle className="text-sm font-medium">{stat.division}</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="text-2xl font-bold">{stat.totalScore.toLocaleString()}</div>
+                                            <div className="text-2xl font-bold">{stat.totalScore.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
                                             <p className="text-xs text-muted-foreground mt-1">
                                                 메달: {stat.gold}금 {stat.silver}은 {stat.bronze}동
                                             </p>
@@ -137,7 +137,7 @@ export default function CategoriesAnalysisPage() {
                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip formatter={(value) => typeof value === 'number' ? value.toLocaleString() : value} />
+                                            <Tooltip formatter={(value) => typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : value} />
                                             <Legend />
                                         </PieChart>
                                     </ResponsiveContainer>
@@ -178,13 +178,13 @@ export default function CategoriesAnalysisPage() {
                                                     <tr key={stat.division} className="border-b">
                                                         <td className="p-3 font-medium">{stat.division}</td>
                                                         <td className="p-3 text-center font-bold text-blue-600">
-                                                            {stat.totalScore.toLocaleString()}
+                                                            {stat.totalScore.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                                         </td>
                                                         <td className="p-3 text-center">
-                                                            {stat.totalExpected.toLocaleString()}
+                                                            {stat.totalExpected.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                                         </td>
                                                         <td className="p-3 text-center">
-                                                            {stat.totalActual.toLocaleString()}
+                                                            {stat.totalActual.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                                         </td>
                                                         <td className="p-3 text-center text-yellow-600 font-semibold">
                                                             {stat.gold}

@@ -147,7 +147,7 @@ export const createColumns = (
         },
         cell: ({ row }) => {
             const score = row.getValue("max_score") as number;
-            return <div className="font-medium text-center">{score.toLocaleString()}</div>;
+            return <div className="font-medium text-center">{score.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
         },
     },
     {
@@ -254,7 +254,7 @@ export const columns: ColumnDef<Sport>[] = [
         },
         cell: ({ row }) => {
             const score = row.getValue("max_score") as number;
-            return <div className="font-medium text-center">{score.toLocaleString()}</div>;
+            return <div className="font-medium text-center">{score.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>;
         },
     },
     {

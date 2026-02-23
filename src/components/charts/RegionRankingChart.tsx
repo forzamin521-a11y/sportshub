@@ -47,7 +47,7 @@ export function RegionRankingChart({ data }: RegionRankingChartProps) {
                                                 총점
                                             </span>
                                             <span className="font-bold">
-                                                {data.score.toLocaleString()}
+                                                {data.score.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                             </span>
                                         </div>
                                     </div>

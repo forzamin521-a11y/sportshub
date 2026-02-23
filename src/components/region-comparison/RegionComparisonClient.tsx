@@ -4,6 +4,7 @@ import { useMemo, useState, Fragment } from "react";
 import { Sport, Score, Region } from "@/types";
 import { GYEONGGI_REGION_ID } from "@/lib/constants";
 import { Users, BarChart3, ChevronDown, ChevronRight } from "lucide-react";
+import { formatOneDecimal } from "@/lib/number-format";
 
 interface RegionComparisonClientProps {
     scores: Score[];
@@ -226,19 +227,19 @@ export function RegionComparisonClient({ scores, sports, regions }: RegionCompar
                                         </span>
                                     </td>
                                     <td className="p-3 text-right font-bold text-lg">
-                                        {region.totalScore.toLocaleString()}
+                                        {formatOneDecimal(region.totalScore)}
                                     </td>
                                     <td className="p-3 text-center">
-                                        <span className="font-bold medal-gold">{region.gold}</span>
+                                        <span className="font-bold medal-gold">{formatOneDecimal(region.gold)}</span>
                                     </td>
                                     <td className="p-3 text-center">
-                                        <span className="font-bold medal-silver">{region.silver}</span>
+                                        <span className="font-bold medal-silver">{formatOneDecimal(region.silver)}</span>
                                     </td>
                                     <td className="p-3 text-center">
-                                        <span className="font-bold medal-bronze">{region.bronze}</span>
+                                        <span className="font-bold medal-bronze">{formatOneDecimal(region.bronze)}</span>
                                     </td>
                                     <td className="p-3 text-center font-semibold">
-                                        {region.gold + region.silver + region.bronze}
+                                        {formatOneDecimal(region.gold + region.silver + region.bronze)}
                                     </td>
                                 </tr>
                             ))}
@@ -316,7 +317,7 @@ export function RegionComparisonClient({ scores, sports, regions }: RegionCompar
                                                     >
                                                         {totalScore > 0 ? (
                                                             <div>
-                                                                <div>{totalScore.toFixed(1)}</div>
+                                                                <div>{totalScore.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
                                                                 {totalGold > 0 && (
                                                                     <div className="text-xs medal-gold">
                                                                         {totalGold}금
@@ -375,7 +376,7 @@ export function RegionComparisonClient({ scores, sports, regions }: RegionCompar
                                                                     {score > 0 ? (
                                                                         <div>
                                                                             <div className={region.isGyeonggi ? 'text-primary' : ''}>
-                                                                                {score.toFixed(1)}
+                                                                                {score.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                                                             </div>
                                                                             {gold > 0 && (
                                                                                 <div className="text-xs medal-gold">
@@ -418,7 +419,7 @@ export function RegionComparisonClient({ scores, sports, regions }: RegionCompar
                                                                             {score > 0 ? (
                                                                                 <div>
                                                                                     <div className={region.isGyeonggi ? 'text-primary' : ''}>
-                                                                                        {score.toFixed(1)}
+                                                                                        {score.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                                                                     </div>
                                                                                     {gold > 0 && (
                                                                                         <div className="text-xs medal-gold">

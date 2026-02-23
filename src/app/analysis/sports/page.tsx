@@ -278,9 +278,9 @@ export default function SportsAnalysisPage() {
                                                 <tr key={score.id || index} className={`border-b ${score.region_id === GYEONGGI_REGION_ID ? 'bg-blue-50 font-semibold' : ''}`}>
                                                     <td className="p-3 font-medium">{score.region_name}</td>
                                                     <td className="p-3 text-center">{score.division}</td>
-                                                    <td className="p-3 text-center">{score.expected_score?.toLocaleString() || '-'}</td>
+                                                    <td className="p-3 text-center">{score.expected_score?.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || '-'}</td>
                                                     <td className="p-3 text-center font-semibold text-blue-600">
-                                                        {score.actual_score?.toLocaleString() || '-'}
+                                                        {score.actual_score?.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || '-'}
                                                     </td>
                                                     <td className="p-3 text-center">{score.gold || '-'}</td>
                                                     <td className="p-3 text-center">{score.silver || '-'}</td>

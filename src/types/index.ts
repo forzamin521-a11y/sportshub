@@ -34,6 +34,15 @@ export interface Score {
   bronze?: number; // 동메달
   rank?: string; // 실제 순위/라운드 (1, 2, 3 또는 round_of_4, round_of_8 등)
   updated_at?: string;
+  // 예상 관련 필드 (U-Y 컬럼)
+  expected_sub_event_total?: number; // 예상 전국점수합계
+  expected_record_type?: string; // 예상 신기록 타입
+  expected_confirmed_bonus?: number; // 예상 확정자가산 (자동계산)
+  expected_total_score?: number; // 예상 총점 (자동계산)
+  expected_converted_score?: number; // 예상 환산점수 (배치 계산)
+  // 연도별 데이터 관리
+  year: number; // 대회 연도 (기본값 2025)
+  match_date?: string; // 경기일자 (YYYY-MM-DD)
 }
 
 export interface CategoryScore {

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSheetData, updateSheetData } from "@/lib/google-sheets";
 import { Score, Sport } from "@/types";
+import { parseScore, scoreToRow } from "@/lib/parse-scores";
 
 export async function POST(request: NextRequest) {
     try {
@@ -48,27 +49,8 @@ export async function POST(request: NextRequest) {
         const scoresData = await getSheetData("scores");
         const allScores: (Score & { rowIndex: number })[] = scoresData
             .map((row: any, index: number) => ({
+                ...parseScore(row),
                 rowIndex: index + 2, // +2 for header row (1-indexed)
-                id: String(row.id),
-                sport_id: String(row.sport_id),
-                sport_event_id: row.sport_event_id ? String(row.sport_event_id) : undefined,
-                region_id: String(row.region_id),
-                division: row.division,
-                expected_rank: row.expected_rank ? String(row.expected_rank) : undefined,
-                expected_score: parseFloat(row.expected_score) || 0,
-                expected_medal_score: row.expected_medal_score ? parseFloat(row.expected_medal_score) : undefined,
-                actual_score: row.actual_score ? parseFloat(row.actual_score) : undefined,
-                actual_medal_score: row.actual_medal_score ? parseFloat(row.actual_medal_score) : undefined,
-                sub_event_total: row.sub_event_total ? parseFloat(row.sub_event_total) : undefined,
-                converted_score: row.converted_score ? parseFloat(row.converted_score) : undefined,
-                confirmed_bonus: row.confirmed_bonus ? parseFloat(row.confirmed_bonus) : undefined,
-                record_type: row.record_type ? String(row.record_type) : undefined,
-                total_score: row.total_score ? parseFloat(row.total_score) : undefined,
-                gold: row.gold ? parseInt(row.gold) : undefined,
-                silver: row.silver ? parseInt(row.silver) : undefined,
-                bronze: row.bronze ? parseInt(row.bronze) : undefined,
-                rank: row.rank ? String(row.rank) : undefined,
-                updated_at: row.updated_at,
             }));
 
         const sportScores = allScores.filter((s) => s.sport_id === sport_id);
@@ -115,32 +97,16 @@ export async function POST(request: NextRequest) {
 
             const updatedAt = new Date().toISOString();
 
-            // Create updated row array in the correct column order
-            const updatedRow: (string | number)[] = [
-                score.id,
-                score.sport_id,
-                score.sport_event_id ?? '',
-                score.region_id,
-                score.division,
-                score.expected_rank ?? '',
-                score.expected_score,
-                score.expected_medal_score ?? '',
-                score.actual_score ?? '',
-                score.actual_medal_score ?? '',
-                score.sub_event_total ?? '',
-                환산점수, // converted_score
-                score.confirmed_bonus ?? '',
-                score.record_type ?? '',
-                score.total_score ?? '',
-                score.gold ?? '',
-                score.silver ?? '',
-                score.bronze ?? '',
-                score.rank ?? '',
-                updatedAt,
-            ];
+            // Create updated row array using scoreToRow utility (27 columns, A~AA)
+            const updatedScore: Score = {
+                ...score,
+                converted_score: 환산점수,
+                updated_at: updatedAt,
+            };
+            const updatedRow = scoreToRow(updatedScore);
 
             const sheetRow = score.rowIndex;
-            const range = `A${sheetRow}:T${sheetRow}`; // T is the 20th column (updated_at)
+            const range = `A${sheetRow}:AA${sheetRow}`; // AA is the 27th column (match_date)
 
             updates.push(updateSheetData("scores", range, [updatedRow]));
 

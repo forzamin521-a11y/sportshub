@@ -75,7 +75,7 @@ export default function ComparePage() {
         const existingCategory = acc.find(item => item.category === category);
 
         if (!existingCategory) {
-            const categoryData: any = { category };
+            const categoryData: Record<string, number | string> = { category };
 
             selectedRegionIds.forEach(regionId => {
                 const region = regions.find(r => r.id === regionId);
@@ -103,7 +103,7 @@ export default function ComparePage() {
         }
 
         return acc;
-    }, [] as any[]);
+    }, [] as Record<string, number | string>[]);
 
     // 비교 테이블 데이터
     const comparisonTableData = selectedRegionIds.map(regionId => {
@@ -120,7 +120,7 @@ export default function ComparePage() {
             name: region?.name || regionId,
             totalScore,
             totalExpected,
-            achievement: totalExpected > 0 ? ((totalScore / totalExpected) * 100).toFixed(1) : '0',
+            achievement: totalExpected > 0 ? ((totalScore / totalExpected) * 100).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '0',
             totalGold,
             totalSilver,
             totalBronze,
@@ -262,10 +262,10 @@ export default function ComparePage() {
                                                         <tr key={index} className="border-b">
                                                             <td className="p-3 font-semibold">{data.name}</td>
                                                             <td className="p-3 text-center font-semibold text-blue-600">
-                                                                {data.totalScore.toLocaleString()}
+                                                                {data.totalScore.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                                             </td>
                                                             <td className="p-3 text-center">
-                                                                {data.totalExpected.toLocaleString()}
+                                                                {data.totalExpected.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                                             </td>
                                                             <td className="p-3 text-center">
                                                                 <span

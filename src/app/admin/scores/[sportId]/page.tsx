@@ -1,6 +1,7 @@
 import { getSheetData } from "@/lib/google-sheets";
 import { SHEET_NAMES } from "@/lib/constants";
 import { Sport, SportEvent, Score, Region } from "@/types";
+import { parseScore } from "@/lib/parse-scores";
 import { ScoreDetailClient } from "./ScoreDetailClient";
 import { notFound } from "next/navigation";
 
@@ -52,28 +53,7 @@ async function getSportScoreData(sportId: string) {
             eventIds.has(String(row.sport_event_id)) ||
             String(row.sport_id) === sportId
         )
-        .map((row: any) => ({
-            id: String(row.id),
-            sport_id: String(row.sport_id),
-            sport_event_id: row.sport_event_id ? String(row.sport_event_id) : undefined,
-            region_id: String(row.region_id),
-            division: String(row.division) as Score['division'],
-            expected_rank: row.expected_rank ? String(row.expected_rank) : undefined,
-            expected_score: row.expected_score != null && row.expected_score !== '' ? Number(row.expected_score) : 0,
-            expected_medal_score: row.expected_medal_score != null && row.expected_medal_score !== '' ? Number(row.expected_medal_score) : undefined,
-            actual_score: row.actual_score != null && row.actual_score !== '' ? Number(row.actual_score) : undefined,
-            actual_medal_score: row.actual_medal_score != null && row.actual_medal_score !== '' ? Number(row.actual_medal_score) : undefined,
-            sub_event_total: row.sub_event_total != null && row.sub_event_total !== '' ? Number(row.sub_event_total) : undefined,
-            converted_score: row.converted_score != null && row.converted_score !== '' ? Number(row.converted_score) : undefined,
-            confirmed_bonus: row.confirmed_bonus != null && row.confirmed_bonus !== '' ? Number(row.confirmed_bonus) : undefined,
-            record_type: row.record_type ? String(row.record_type) : undefined,
-            total_score: row.total_score != null && row.total_score !== '' ? Number(row.total_score) : undefined,
-            gold: row.gold != null && row.gold !== '' ? Number(row.gold) : undefined,
-            silver: row.silver != null && row.silver !== '' ? Number(row.silver) : undefined,
-            bronze: row.bronze != null && row.bronze !== '' ? Number(row.bronze) : undefined,
-            rank: row.rank ? String(row.rank) : undefined,
-            updated_at: row.updated_at ? String(row.updated_at) : undefined,
-        }));
+        .map((row: any) => parseScore(row));
 
     // Get regions
     const regions: Region[] = regionsData.map(row => ({
