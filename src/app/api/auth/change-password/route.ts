@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-
-// 간단한 비밀번호 저장소 (실제로는 데이터베이스 사용)
-// auth.ts의 users 배열과 동일한 참조를 사용해야 하지만,
-// 여기서는 간단하게 하드코딩된 체크만 수행
-let adminPassword = "admin123";
+import { updateAdminPassword, verifyAdminPassword } from '@/lib/admin-credentials';
 
 export async function POST(request: Request) {
     try {
@@ -26,7 +22,7 @@ export async function POST(request: Request) {
         }
 
         // 현재 비밀번호 확인
-        if (currentPassword !== adminPassword) {
+        if (!(await verifyAdminPassword(currentPassword))) {
             return NextResponse.json(
                 { error: '현재 비밀번호가 올바르지 않습니다' },
                 { status: 400 }
@@ -42,11 +38,7 @@ export async function POST(request: Request) {
         }
 
         // 비밀번호 변경
-        adminPassword = newPassword;
-
-        // 실제로는 auth.ts의 users 배열도 업데이트해야 하지만,
-        // 여기서는 간단하게 구현
-        // 프로덕션에서는 데이터베이스에 저장
+        await updateAdminPassword(newPassword);
 
         return NextResponse.json({
             message: '비밀번호가 성공적으로 변경되었습니다. 다시 로그인해주세요.',
@@ -59,5 +51,3 @@ export async function POST(request: Request) {
         );
     }
 }
-
-export { adminPassword };

@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { Loader2 } from "lucide-react";
+import { mutateJson, requestJson, toUserErrorMessage } from "@/lib/api-client";
 
 const scoreSchema = z.object({
     sport_id: z.string().min(1, "종목을 선택하세요"),
@@ -73,26 +74,14 @@ export function ScoreForm({ initialData, sports, regions, onSuccess }: ScoreForm
         async function fetchData() {
             try {
                 const [configsRes, eventsRes, recordTypesRes] = await Promise.all([
-                    fetch("/api/configs/rank-score"),
-                    fetch("/api/sport-events"),
-                    fetch("/api/record-types"),
+                    requestJson<{ data: RankScoreConfig[] }>("/api/configs/rank-score"),
+                    requestJson<{ data: SportEvent[] }>("/api/sport-events"),
+                    requestJson<{ data: RecordType[] }>("/api/record-types"),
                 ]);
-
-                if (configsRes.ok) {
-                    const data = await configsRes.json();
-                    setRankScoreConfigs(data.data || []);
-                }
-
-                if (eventsRes.ok) {
-                    const data = await eventsRes.json();
-                    setSportEvents(data.data || []);
-                }
-
-                if (recordTypesRes.ok) {
-                    const data = await recordTypesRes.json();
-                    if (data.data && data.data.length > 0) {
-                        setRecordTypes(data.data);
-                    }
+                setRankScoreConfigs(configsRes.data || []);
+                setSportEvents(eventsRes.data || []);
+                if (recordTypesRes.data && recordTypesRes.data.length > 0) {
+                    setRecordTypes(recordTypesRes.data);
                 }
             } catch (error) {
                 console.error("Failed to fetch data:", error);
@@ -222,19 +211,16 @@ export function ScoreForm({ initialData, sports, regions, onSuccess }: ScoreForm
             const url = initialData ? `/api/scores/${initialData.id}` : "/api/scores";
             const method = initialData ? "PUT" : "POST";
 
-            const res = await fetch(url, {
+            await mutateJson(url, {
                 method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(values),
+                body: values,
             });
-
-            if (!res.ok) throw new Error("Failed");
 
             toast.success(initialData ? "수정되었습니다." : "등록되었습니다.");
             router.refresh();
             onSuccess();
         } catch (error) {
-            toast.error("저장에 실패했습니다.");
+            toast.error(toUserErrorMessage(error, "저장에 실패했습니다."));
         }
     }
 

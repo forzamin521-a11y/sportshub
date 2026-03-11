@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { regionSchema } from "@/lib/validations";
+import { mutateJson, toUserErrorMessage } from "@/lib/api-client";
 
 interface RegionFormProps {
     initialData?: Region;
@@ -42,20 +43,17 @@ export function RegionForm({ initialData, onSuccess }: RegionFormProps) {
             const url = initialData ? `/api/regions/${initialData.id}` : "/api/regions";
             const method = initialData ? "PUT" : "POST";
 
-            const res = await fetch(url, {
+            await mutateJson(url, {
                 method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(values),
+                body: values,
             });
-
-            if (!res.ok) throw new Error("Failed");
 
             toast.success(initialData ? "수정되었습니다." : "등록되었습니다.");
             router.refresh();
             onSuccess();
         } catch (error) {
             console.error(error);
-            toast.error("저장에 실패했습니다.");
+            toast.error(toUserErrorMessage(error, "저장에 실패했습니다."));
         }
     }
 

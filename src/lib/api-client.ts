@@ -32,6 +32,33 @@ export async function requestJson<T>(
     return (await res.json()) as T;
 }
 
+export async function mutateJson<TResponse, TBody = unknown>(
+    url: string,
+    options?: Omit<RequestInit, "body"> & {
+        body?: TBody;
+    }
+): Promise<TResponse> {
+    const { body, headers, method = "POST", ...rest } = options ?? {};
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+
+    return requestJson<TResponse>(url, {
+        method,
+        headers: isFormData
+            ? headers
+            : {
+                "Content-Type": "application/json",
+                ...headers,
+            },
+        body:
+            body === undefined
+                ? undefined
+                : isFormData
+                    ? body
+                    : JSON.stringify(body),
+        ...rest,
+    });
+}
+
 export function toUserErrorMessage(
     error: unknown,
     fallback: string

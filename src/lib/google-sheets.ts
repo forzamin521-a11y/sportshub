@@ -29,6 +29,18 @@ function clearSheetCache() {
     inFlightReads.clear();
 }
 
+async function getSheetMetadata(sheetName: string) {
+    if (!SPREADSHEET_ID) return null;
+
+    const spreadsheet = await sheets.spreadsheets.get({
+        spreadsheetId: SPREADSHEET_ID,
+    });
+
+    return spreadsheet.data.sheets?.find(
+        (sheet) => sheet.properties?.title === sheetName
+    ) || null;
+}
+
 function isRateLimitError(error: unknown): boolean {
     if (!error || typeof error !== "object") return false;
     const e = error as { code?: number; message?: string };
@@ -133,6 +145,57 @@ export async function appendSheetData(
         }
 
         throw error;
+    }
+}
+
+export async function ensureSheetHeaders(
+    sheetName: string,
+    headers: string[]
+) {
+    if (!SPREADSHEET_ID) return;
+
+    const existingSheet = await getSheetMetadata(sheetName);
+
+    if (!existingSheet) {
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            requestBody: {
+                requests: [
+                    {
+                        addSheet: {
+                            properties: {
+                                title: sheetName,
+                            },
+                        },
+                    },
+                ],
+            },
+        });
+
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!A1:${String.fromCharCode(64 + headers.length)}1`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+                values: [headers],
+            },
+        });
+
+        clearSheetCache();
+        return;
+    }
+
+    const headerRow = await getSheetData(sheetName, "1:1").catch(() => []);
+    if (headerRow.length === 0) {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!A1:${String.fromCharCode(64 + headers.length)}1`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+                values: [headers],
+            },
+        });
+        clearSheetCache();
     }
 }
 

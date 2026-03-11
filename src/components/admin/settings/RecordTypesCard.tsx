@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { mutateJson, requestJson, toUserErrorMessage } from "@/lib/api-client";
 
 export function RecordTypesCard() {
     const router = useRouter();
@@ -17,6 +19,7 @@ export function RecordTypesCard() {
     const [loading, setLoading] = useState(true);
     const [showDialog, setShowDialog] = useState(false);
     const [editingType, setEditingType] = useState<RecordType | null>(null);
+    const [deletingType, setDeletingType] = useState<RecordType | null>(null);
     const [saving, setSaving] = useState(false);
 
     // Form state
@@ -30,13 +33,11 @@ export function RecordTypesCard() {
 
     const fetchRecordTypes = async () => {
         try {
-            const res = await fetch("/api/record-types");
-            if (res.ok) {
-                const data = await res.json();
-                setRecordTypes(data.data || []);
-            }
+            const data = await requestJson<{ data: RecordType[] }>("/api/record-types");
+            setRecordTypes(data.data || []);
         } catch (error) {
             console.error("Failed to fetch record types:", error);
+            toast.error(toUserErrorMessage(error, "신기록 타입 목록을 불러오지 못했습니다."));
         } finally {
             setLoading(false);
         }
@@ -70,20 +71,14 @@ export function RecordTypesCard() {
             const method = editingType ? "PUT" : "POST";
             const url = editingType ? `/api/record-types/${editingType.id}` : "/api/record-types";
 
-            const res = await fetch(url, {
+            await mutateJson(url, {
                 method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     id: formId,
                     name: formName,
                     bonus_percentage: formBonusPercentage,
-                }),
+                },
             });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || "저장 실패");
-            }
 
             toast.success(editingType ? "수정되었습니다." : "등록되었습니다.");
             setShowDialog(false);
@@ -91,53 +86,42 @@ export function RecordTypesCard() {
             router.refresh();
         } catch (error) {
             console.error(error);
-            toast.error(error instanceof Error ? error.message : "오류가 발생했습니다.");
+            toast.error(toUserErrorMessage(error, "오류가 발생했습니다."));
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("정말 삭제하시겠습니까?")) return;
-
+    const handleDelete = async () => {
+        if (!deletingType) return;
         try {
-            const res = await fetch(`/api/record-types/${id}`, {
+            await mutateJson(`/api/record-types/${deletingType.id}`, {
                 method: "DELETE",
             });
 
-            if (!res.ok) {
-                throw new Error("삭제 실패");
-            }
-
             toast.success("삭제되었습니다.");
+            setDeletingType(null);
             fetchRecordTypes();
             router.refresh();
         } catch (error) {
             console.error(error);
-            toast.error("삭제 중 오류가 발생했습니다.");
+            toast.error(toUserErrorMessage(error, "삭제 중 오류가 발생했습니다."));
         }
     };
 
     const handleInitialize = async () => {
-        if (!confirm("기본 신기록 타입을 등록하시겠습니까?")) return;
-
         setSaving(true);
         try {
-            const res = await fetch("/api/record-types/init", {
+            await mutateJson("/api/record-types/init", {
                 method: "POST",
             });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || "초기화 실패");
-            }
 
             toast.success("기본 신기록 타입이 등록되었습니다.");
             fetchRecordTypes();
             router.refresh();
         } catch (error) {
             console.error(error);
-            toast.error(error instanceof Error ? error.message : "초기화 중 오류가 발생했습니다.");
+            toast.error(toUserErrorMessage(error, "초기화 중 오류가 발생했습니다."));
         } finally {
             setSaving(false);
         }
@@ -213,7 +197,7 @@ export function RecordTypesCard() {
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
-                                                onClick={() => handleDelete(type.id)}
+                                                onClick={() => setDeletingType(type)}
                                                 className="text-destructive hover:text-destructive"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -282,6 +266,28 @@ export function RecordTypesCard() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!deletingType} onOpenChange={(open) => !open && setDeletingType(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>신기록 타입을 삭제하시겠습니까?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {deletingType?.name} 삭제 시 해당 타입을 참조하는 점수 계산에 영향이 있을 수 있습니다.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={saving}>취소</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={saving}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            삭제
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

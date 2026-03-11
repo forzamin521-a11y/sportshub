@@ -1,15 +1,6 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-
-// 간단한 사용자 저장소 (실제 프로덕션에서는 데이터베이스 사용)
-const users = [
-    {
-        id: "1",
-        username: "admin",
-        password: "admin123", // 실제로는 해시된 비밀번호를 사용해야 함
-        name: "관리자",
-    }
-];
+import { getAdminCredentials, validateAdminCredentials } from "@/lib/admin-credentials";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -24,15 +15,12 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
-                const user = users.find(
-                    u => u.username === credentials.username && u.password === credentials.password
-                );
-
-                if (user) {
+                if (await validateAdminCredentials(credentials.username, credentials.password)) {
+                    const admin = await getAdminCredentials();
                     return {
-                        id: user.id,
-                        name: user.name,
-                        email: user.username, // NextAuth requires email
+                        id: "1",
+                        name: "관리자",
+                        email: admin.username,
                     };
                 }
 

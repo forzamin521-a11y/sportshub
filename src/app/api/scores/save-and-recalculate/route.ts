@@ -6,6 +6,7 @@ import { SHEET_NAMES, DEFAULT_YEAR, CURRENT_YEAR } from "@/lib/constants";
 import { Score } from "@/types";
 import { DEFAULT_RECORD_TYPES } from "@/lib/record-types";
 import { parseScore as parseScoreBase, scoreToRow as scoreToRowBase } from "@/lib/parse-scores";
+import { calculateAlphaScoreFromTotals, calculateConvertedTotal, createRecordTypeMap, getUniqueEventTotals } from "@/lib/score-calculations";
 
 interface ScoreWithRow extends Score {
     rowIndex: number; // 1-indexed sheet row (header=1, data starts at 2)
@@ -127,9 +128,7 @@ export async function POST(request: Request) {
         );
 
         // 5. Build record types map for O(1) lookup
-        const recordTypesMap = new Map(
-            DEFAULT_RECORD_TYPES.map((rt) => [rt.id, rt])
-        );
+        const recordTypesMap = createRecordTypeMap(DEFAULT_RECORD_TYPES);
 
         const now = new Date().toISOString();
 
@@ -221,75 +220,45 @@ export async function POST(request: Request) {
         }
 
         // 7. Calculate alphaScore (actual)
-        const subEventTotals = new Map<string, number>();
-        sportScores.forEach((score) => {
-            if (score.sport_event_id && score.sub_event_total) {
-                subEventTotals.set(score.sport_event_id, score.sub_event_total);
-            }
-        });
-        const totalNationalScore = Array.from(subEventTotals.values()).reduce(
-            (sum, v) => sum + v,
-            0
-        );
-        const alphaScore =
-            totalNationalScore > 0 ? maxScore / totalNationalScore : 0;
+        const subEventTotals = getUniqueEventTotals(sportScores, "sub_event_total");
+        const {
+            alphaScore,
+            totalNationalScore,
+        } = calculateAlphaScoreFromTotals(maxScore, subEventTotals.values());
 
         // 7b. Calculate expectedAlphaScore (expected_sub_event_total only, no fallback)
-        const expectedSubEventTotals = new Map<string, number>();
-        sportScores.forEach((score) => {
-            if (score.sport_event_id && score.expected_sub_event_total) {
-                expectedSubEventTotals.set(score.sport_event_id, score.expected_sub_event_total);
-            }
-        });
-        const expectedTotalNationalScore = Array.from(expectedSubEventTotals.values()).reduce(
-            (sum, v) => sum + v,
-            0
-        );
-        const expectedAlphaScore =
-            expectedTotalNationalScore > 0 ? maxScore / expectedTotalNationalScore : 0;
+        const expectedSubEventTotals = getUniqueEventTotals(sportScores, "expected_sub_event_total");
+        const {
+            alphaScore: expectedAlphaScore,
+            totalNationalScore: expectedTotalNationalScore,
+        } = calculateAlphaScoreFromTotals(maxScore, expectedSubEventTotals.values());
 
         // 8. Recalculate ALL scores for this sport (actual + expected)
         sportScores.forEach((score) => {
-            const actualScore = score.actual_score || 0;
-            const actualMedalScore = score.actual_medal_score || 0;
+            const actualTotals = calculateConvertedTotal(
+                score.actual_score || 0,
+                score.actual_medal_score || 0,
+                alphaScore,
+                score.record_type,
+                recordTypesMap
+            );
 
-            // converted_score = (획득성적 × 알점수) + 메달득점
-            const convertedScore = actualScore * alphaScore + actualMedalScore;
-
-            // confirmed_bonus = 획득성적 × (신기록가산배율 / 100)
-            const recordType = recordTypesMap.get(score.record_type || "");
-            const confirmedBonus =
-                recordType && recordType.bonus_percentage > 0
-                    ? actualScore * (recordType.bonus_percentage / 100)
-                    : 0;
-
-            // total_score = 환산점수 + 확정자가산
-            const totalScore = convertedScore + confirmedBonus;
-
-            score.converted_score = convertedScore;
-            score.confirmed_bonus = confirmedBonus;
-            score.total_score = totalScore;
+            score.converted_score = actualTotals.convertedScore;
+            score.confirmed_bonus = actualTotals.confirmedBonus;
+            score.total_score = actualTotals.totalScore;
 
             // Expected calculations
-            const expectedScore = score.expected_score || 0;
-            const expectedMedalScore = score.expected_medal_score || 0;
+            const expectedTotals = calculateConvertedTotal(
+                score.expected_score || 0,
+                score.expected_medal_score || 0,
+                expectedAlphaScore,
+                score.expected_record_type,
+                recordTypesMap
+            );
 
-            // expected_converted_score = (예상득점 × 예상알점수) + 예상메달득점
-            const expectedConvertedScore = expectedScore * expectedAlphaScore + expectedMedalScore;
-
-            // expected_confirmed_bonus = 예상득점 × (예상신기록가산배율 / 100)
-            const expectedRecordType = recordTypesMap.get(score.expected_record_type || "");
-            const expectedConfirmedBonus =
-                expectedRecordType && expectedRecordType.bonus_percentage > 0
-                    ? expectedScore * (expectedRecordType.bonus_percentage / 100)
-                    : 0;
-
-            // expected_total_score = 예상환산점수 + 예상확정자가산
-            const expectedTotalScore = expectedConvertedScore + expectedConfirmedBonus;
-
-            score.expected_converted_score = expectedConvertedScore;
-            score.expected_confirmed_bonus = expectedConfirmedBonus;
-            score.expected_total_score = expectedTotalScore;
+            score.expected_converted_score = expectedTotals.convertedScore;
+            score.expected_confirmed_bonus = expectedTotals.confirmedBonus;
+            score.expected_total_score = expectedTotals.totalScore;
 
             score.updated_at = now;
         });

@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { sportEventSchema } from "@/lib/validations";
 import { DIVISION_LIST } from "@/lib/constants";
+import { mutateJson, toUserErrorMessage } from "@/lib/api-client";
 
 interface SportEventFormProps {
     sportId: string;
@@ -54,23 +55,17 @@ export function SportEventForm({ sportId, defaultDivision, initialData, onSucces
                 : "/api/sport-events";
             const method = initialData ? "PUT" : "POST";
 
-            const res = await fetch(url, {
+            await mutateJson(url, {
                 method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(values),
+                body: values,
             });
-
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.error || "Failed");
-            }
 
             toast.success(initialData ? "수정되었습니다." : "등록되었습니다.");
             router.refresh();
             onSuccess();
         } catch (error) {
             console.error(error);
-            toast.error(error instanceof Error ? error.message : "저장에 실패했습니다.");
+            toast.error(toUserErrorMessage(error, "저장에 실패했습니다."));
         }
     }
 

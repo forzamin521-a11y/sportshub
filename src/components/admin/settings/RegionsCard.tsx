@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Edit, Trash2, Loader2, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { mutateJson, requestJson, toUserErrorMessage } from "@/lib/api-client";
 
 export function RegionsCard() {
     const router = useRouter();
@@ -19,6 +21,7 @@ export function RegionsCard() {
     const [loading, setLoading] = useState(true);
     const [showDialog, setShowDialog] = useState(false);
     const [editingRegion, setEditingRegion] = useState<Region | null>(null);
+    const [deletingRegion, setDeletingRegion] = useState<Region | null>(null);
     const [saving, setSaving] = useState(false);
 
     // Form state
@@ -33,13 +36,11 @@ export function RegionsCard() {
 
     const fetchRegions = async () => {
         try {
-            const res = await fetch("/api/regions");
-            if (res.ok) {
-                const data = await res.json();
-                setRegions(data.data || []);
-            }
+            const data = await requestJson<{ data: Region[] }>("/api/regions");
+            setRegions(data.data || []);
         } catch (error) {
             console.error("Failed to fetch regions:", error);
+            toast.error(toUserErrorMessage(error, "시/도 목록을 불러오지 못했습니다."));
         } finally {
             setLoading(false);
         }
@@ -75,21 +76,15 @@ export function RegionsCard() {
             const method = editingRegion ? "PUT" : "POST";
             const url = editingRegion ? `/api/regions/${editingRegion.id}` : "/api/regions";
 
-            const res = await fetch(url, {
+            await mutateJson(url, {
                 method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     id: formId,
                     name: formName,
                     is_host: formIsHost,
                     color: formColor,
-                }),
+                },
             });
-
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || "저장 실패");
-            }
 
             toast.success(editingRegion ? "수정되었습니다." : "등록되었습니다.");
             setShowDialog(false);
@@ -97,30 +92,26 @@ export function RegionsCard() {
             router.refresh();
         } catch (error) {
             console.error(error);
-            toast.error(error instanceof Error ? error.message : "오류가 발생했습니다.");
+            toast.error(toUserErrorMessage(error, "오류가 발생했습니다."));
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("정말 삭제하시겠습니까? 해당 시/도의 모든 점수 데이터가 영향을 받을 수 있습니다.")) return;
-
+    const handleDelete = async () => {
+        if (!deletingRegion) return;
         try {
-            const res = await fetch(`/api/regions/${id}`, {
+            await mutateJson(`/api/regions/${deletingRegion.id}`, {
                 method: "DELETE",
             });
 
-            if (!res.ok) {
-                throw new Error("삭제 실패");
-            }
-
             toast.success("삭제되었습니다.");
+            setDeletingRegion(null);
             fetchRegions();
             router.refresh();
         } catch (error) {
             console.error(error);
-            toast.error("삭제 중 오류가 발생했습니다.");
+            toast.error(toUserErrorMessage(error, "삭제 중 오류가 발생했습니다."));
         }
     };
 
@@ -203,7 +194,7 @@ export function RegionsCard() {
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
-                                                onClick={() => handleDelete(region.id)}
+                                                onClick={() => setDeletingRegion(region)}
                                                 className="text-destructive hover:text-destructive"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -290,6 +281,28 @@ export function RegionsCard() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!deletingRegion} onOpenChange={(open) => !open && setDeletingRegion(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>시/도를 삭제하시겠습니까?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {deletingRegion?.name} 삭제 시 연결된 점수 데이터에 영향이 있을 수 있습니다. 이 작업은 되돌릴 수 없습니다.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={saving}>취소</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={saving}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            삭제
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

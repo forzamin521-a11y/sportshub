@@ -90,10 +90,6 @@ function LoginForm() {
                     "로그인"
                 )}
             </Button>
-
-            <div className="text-sm text-center text-muted-foreground mt-4">
-                <p>기본 계정: admin / admin123</p>
-            </div>
         </form>
     );
 }

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getSheetData, updateSheetData } from "@/lib/google-sheets";
 import { Score, Sport } from "@/types";
 import { parseScore, scoreToRow } from "@/lib/parse-scores";
+import { calculateAlphaScoreFromTotals, calculateConvertedScore, getUniqueEventTotals } from "@/lib/score-calculations";
 
 export async function POST(request: NextRequest) {
     try {
@@ -72,7 +73,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Calculate 득점총계 (sum of all sub_event_total)
-        const 득점총계 = sportScores.reduce((sum, s) => sum + (s.sub_event_total || 0), 0);
+        const uniqueEventTotals = getUniqueEventTotals(sportScores, "sub_event_total");
+        const { alphaScore: 알점수, totalNationalScore: 득점총계 } = calculateAlphaScoreFromTotals(확정점수, uniqueEventTotals.values());
 
         if (득점총계 === 0) {
             return NextResponse.json(
@@ -80,9 +82,6 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
-
-        // Calculate 알점수
-        const 알점수 = 확정점수 / 득점총계;
 
         // Update each score with converted_score
         const updates: Promise<void>[] = [];
@@ -93,7 +92,7 @@ export async function POST(request: NextRequest) {
             const 메달득점 = score.actual_medal_score || 0;
 
             // 환산점수 = (획득성적 × 알점수) + 메달득점
-            const 환산점수 = (획득성적 * 알점수) + 메달득점;
+            const 환산점수 = calculateConvertedScore(획득성적, 메달득점, 알점수);
 
             const updatedAt = new Date().toISOString();
 

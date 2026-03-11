@@ -28,6 +28,7 @@ import { useRouter } from "next/navigation";
 import { DIVISION_LIST } from "@/lib/constants";
 import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { mutateJson, toUserErrorMessage } from "@/lib/api-client";
 
 const formSchema = z.object({
     sport_id: z.string().optional(),
@@ -86,51 +87,37 @@ export function SportForm({ initialData, onSuccess }: SportFormProps) {
 
         try {
             // 1. 먼저 종목 생성
-            const sportRes = await fetch("/api/sports", {
+            const sportData = await mutateJson<{ data: Sport }>("/api/sports", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     id: values.sport_id || undefined,
                     name: values.sport_name,
                     sub_name: "",
                     max_score: values.max_score,
-                }),
+                },
             });
-
-            if (!sportRes.ok) {
-                const error = await sportRes.json();
-                throw new Error(error.error || "종목 생성 실패");
-            }
-
-            const sportData = await sportRes.json();
             const newSportId = sportData.data.id;
 
             // 2. 세부종목들을 모두 생성
             const eventPromises = validEvents.map(event =>
-                fetch("/api/sport-events", {
+                mutateJson("/api/sport-events", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
+                    body: {
                         sport_id: newSportId,
                         division: event.division,
                         event_name: event.event_name,
-                    }),
+                    },
                 })
             );
 
-            const results = await Promise.all(eventPromises);
-            const failedCount = results.filter(r => !r.ok).length;
-
-            if (failedCount > 0) {
-                throw new Error(`${failedCount}개의 세부종목 생성 실패`);
-            }
+            await Promise.all(eventPromises);
 
             toast.success(`종목과 ${validEvents.length}개의 세부종목이 등록되었습니다.`);
             router.refresh();
             onSuccess();
         } catch (error) {
             console.error(error);
-            toast.error(error instanceof Error ? error.message : "저장에 실패했습니다.");
+            toast.error(toUserErrorMessage(error, "저장에 실패했습니다."));
         }
     }
 

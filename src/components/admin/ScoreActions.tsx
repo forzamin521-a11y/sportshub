@@ -32,6 +32,7 @@ import {
 import { ScoreForm } from "@/components/admin/forms/ScoreForm";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { mutateJson, toUserErrorMessage } from "@/lib/api-client";
 
 interface ScoreActionsProps {
     score: Score;
@@ -50,11 +51,9 @@ export function ScoreActions({ score, sports, regions, onDelete: onDeleteCallbac
     async function handleDelete() {
         setDeleting(true);
         try {
-            const res = await fetch(`/api/scores/${score.id}`, {
+            await mutateJson(`/api/scores/${score.id}`, {
                 method: "DELETE",
             });
-
-            if (!res.ok) throw new Error("Failed to delete");
 
             toast.success("삭제되었습니다.");
             setShowDeleteAlert(false);
@@ -67,7 +66,7 @@ export function ScoreActions({ score, sports, regions, onDelete: onDeleteCallbac
                 router.refresh();
             }
         } catch (error) {
-            toast.error("삭제에 실패했습니다.");
+            toast.error(toUserErrorMessage(error, "삭제에 실패했습니다."));
             setDeleting(false);
         }
     }

@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { rankSortValue } from "@/lib/rank-utils";
 import { requestJson, toUserErrorMessage } from "@/lib/api-client";
+import { calculateAlphaScoreFromTotals, calculateConvertedTotal, createRecordTypeMap, getUniqueEventTotals } from "@/lib/score-calculations";
 
 interface RegionScoresDialogProps {
     event: SportEvent;
@@ -60,6 +61,8 @@ export function RegionScoresDialog({
         [allScores, selectedYear]
     );
 
+    const recordTypesMap = useMemo(() => createRecordTypeMap(recordTypes), [recordTypes]);
+
     const initialScoresForYear = useMemo(
         () => initialScores.filter((s) => (s.year ?? CURRENT_YEAR) === selectedYear),
         [initialScores, selectedYear]
@@ -67,40 +70,22 @@ export function RegionScoresDialog({
 
     // Calculate actual alpha score based on ALL sub-events' national totals
     const alphaScore = useMemo(() => {
-        const subEventTotals = new Map<string, number>();
-        allScoresForYear.forEach(score => {
-            if (score.sport_event_id && score.sub_event_total) {
-                subEventTotals.set(score.sport_event_id, score.sub_event_total);
-            }
-        });
+        const subEventTotals = getUniqueEventTotals(allScoresForYear, "sub_event_total");
 
         if (nationalTotal > 0) {
             subEventTotals.set(event.id, nationalTotal);
         }
-
-        const totalNationalScore = Array.from(subEventTotals.values()).reduce((sum, val) => sum + val, 0);
-
-        if (totalNationalScore === 0) return 0;
-        return sport.max_score / totalNationalScore;
+        return calculateAlphaScoreFromTotals(sport.max_score, subEventTotals.values()).alphaScore;
     }, [sport.max_score, allScoresForYear, nationalTotal, event.id]);
 
     // Calculate expected alpha score (expected_sub_event_total only, no fallback)
     const expectedAlphaScore = useMemo(() => {
-        const subEventTotals = new Map<string, number>();
-        allScoresForYear.forEach(score => {
-            if (score.sport_event_id && score.expected_sub_event_total) {
-                subEventTotals.set(score.sport_event_id, score.expected_sub_event_total);
-            }
-        });
+        const subEventTotals = getUniqueEventTotals(allScoresForYear, "expected_sub_event_total");
 
         if (expectedNationalTotal > 0) {
             subEventTotals.set(event.id, expectedNationalTotal);
         }
-
-        const totalNationalScore = Array.from(subEventTotals.values()).reduce((sum, val) => sum + val, 0);
-
-        if (totalNationalScore === 0) return 0;
-        return sport.max_score / totalNationalScore;
+        return calculateAlphaScoreFromTotals(sport.max_score, subEventTotals.values()).alphaScore;
     }, [sport.max_score, allScoresForYear, expectedNationalTotal, event.id]);
 
     useEffect(() => {
@@ -145,30 +130,32 @@ export function RegionScoresDialog({
 
                 // Recalculate actual scores
                 if (score.rank && alphaScore > 0) {
-                    const convertedScore = (score.actual_score || 0) * alphaScore + (score.actual_medal_score || 0);
-                    const recordType = recordTypes.find(rt => rt.id === score.record_type);
-                    const confirmedBonus = recordType && recordType.bonus_percentage > 0
-                        ? (score.actual_score || 0) * (recordType.bonus_percentage / 100)
-                        : 0;
-                    const totalScore = convertedScore + confirmedBonus;
+                    const totals = calculateConvertedTotal(
+                        score.actual_score || 0,
+                        score.actual_medal_score || 0,
+                        alphaScore,
+                        score.record_type,
+                        recordTypesMap
+                    );
 
-                    newScore.converted_score = convertedScore;
-                    newScore.confirmed_bonus = confirmedBonus;
-                    newScore.total_score = totalScore;
+                    newScore.converted_score = totals.convertedScore;
+                    newScore.confirmed_bonus = totals.confirmedBonus;
+                    newScore.total_score = totals.totalScore;
                 }
 
                 // Recalculate expected scores
                 if (score.expected_rank && expectedAlphaScore > 0) {
-                    const expectedConvertedScore = (score.expected_score || 0) * expectedAlphaScore + (score.expected_medal_score || 0);
-                    const expectedRecordType = recordTypes.find(rt => rt.id === score.expected_record_type);
-                    const expectedConfirmedBonus = expectedRecordType && expectedRecordType.bonus_percentage > 0
-                        ? (score.expected_score || 0) * (expectedRecordType.bonus_percentage / 100)
-                        : 0;
-                    const expectedTotalScore = expectedConvertedScore + expectedConfirmedBonus;
+                    const totals = calculateConvertedTotal(
+                        score.expected_score || 0,
+                        score.expected_medal_score || 0,
+                        expectedAlphaScore,
+                        score.expected_record_type,
+                        recordTypesMap
+                    );
 
-                    newScore.expected_converted_score = expectedConvertedScore;
-                    newScore.expected_confirmed_bonus = expectedConfirmedBonus;
-                    newScore.expected_total_score = expectedTotalScore;
+                    newScore.expected_converted_score = totals.convertedScore;
+                    newScore.expected_confirmed_bonus = totals.confirmedBonus;
+                    newScore.expected_total_score = totals.totalScore;
                 }
 
                 updated[regionId] = newScore;
@@ -176,7 +163,7 @@ export function RegionScoresDialog({
 
             return updated;
         });
-    }, [alphaScore, expectedAlphaScore, recordTypes]);
+    }, [alphaScore, expectedAlphaScore, recordTypesMap]);
 
     useEffect(() => {
         // Initialize scores
@@ -258,32 +245,30 @@ export function RegionScoresDialog({
 
                 // Recalculate expected scores
                 if (expectedAlphaScore > 0) {
-                    updated.expected_converted_score = (updated.expected_score || 0) * expectedAlphaScore + (updated.expected_medal_score || 0);
-                    const expectedRecordType = recordTypes.find(rt => rt.id === updated.expected_record_type);
-                    if (expectedRecordType && expectedRecordType.bonus_percentage > 0) {
-                        updated.expected_confirmed_bonus = (updated.expected_score || 0) * (expectedRecordType.bonus_percentage / 100);
-                    } else {
-                        updated.expected_confirmed_bonus = 0;
-                    }
-                    updated.expected_total_score = (updated.expected_converted_score || 0) + (updated.expected_confirmed_bonus || 0);
+                    const totals = calculateConvertedTotal(
+                        updated.expected_score || 0,
+                        updated.expected_medal_score || 0,
+                        expectedAlphaScore,
+                        updated.expected_record_type,
+                        recordTypesMap
+                    );
+                    updated.expected_converted_score = totals.convertedScore;
+                    updated.expected_confirmed_bonus = totals.confirmedBonus;
+                    updated.expected_total_score = totals.totalScore;
                 }
             } else if (field === 'rank') {
                 updated.actual_score = rankScore?.acquired_score || 0;
                 updated.actual_medal_score = rankScore?.medal_score || 0;
-
-                // Recalculate converted score
-                updated.converted_score = (updated.actual_score || 0) * alphaScore + (updated.actual_medal_score || 0);
-
-                // Recalculate confirmed bonus
-                const recordType = recordTypes.find(rt => rt.id === updated.record_type);
-                if (recordType && recordType.bonus_percentage > 0) {
-                    updated.confirmed_bonus = (updated.actual_score || 0) * (recordType.bonus_percentage / 100);
-                } else {
-                    updated.confirmed_bonus = 0;
-                }
-
-                // Recalculate total score
-                updated.total_score = (updated.converted_score || 0) + (updated.confirmed_bonus || 0);
+                const totals = calculateConvertedTotal(
+                    updated.actual_score || 0,
+                    updated.actual_medal_score || 0,
+                    alphaScore,
+                    updated.record_type,
+                    recordTypesMap
+                );
+                updated.converted_score = totals.convertedScore;
+                updated.confirmed_bonus = totals.confirmedBonus;
+                updated.total_score = totals.totalScore;
             }
 
             return {
@@ -296,22 +281,21 @@ export function RegionScoresDialog({
     const handleRecordTypeChange = (regionId: string, recordTypeId: string) => {
         setRegionScores(prev => {
             const current = prev[regionId] || {};
-            const recordType = recordTypes.find(rt => rt.id === recordTypeId);
-
-            let confirmed_bonus = 0;
-            if (recordType && recordType.bonus_percentage > 0) {
-                confirmed_bonus = (current.actual_score || 0) * (recordType.bonus_percentage / 100);
-            }
-
-            const total_score = (current.converted_score || 0) + confirmed_bonus;
+            const totals = calculateConvertedTotal(
+                current.actual_score || 0,
+                current.actual_medal_score || 0,
+                alphaScore,
+                recordTypeId,
+                recordTypesMap
+            );
 
             return {
                 ...prev,
                 [regionId]: {
                     ...current,
                     record_type: recordTypeId,
-                    confirmed_bonus,
-                    total_score,
+                    confirmed_bonus: totals.confirmedBonus,
+                    total_score: totals.totalScore,
                 },
             };
         });
@@ -320,22 +304,21 @@ export function RegionScoresDialog({
     const handleExpectedRecordTypeChange = (regionId: string, recordTypeId: string) => {
         setRegionScores(prev => {
             const current = prev[regionId] || {};
-            const recordType = recordTypes.find(rt => rt.id === recordTypeId);
-
-            let expected_confirmed_bonus = 0;
-            if (recordType && recordType.bonus_percentage > 0) {
-                expected_confirmed_bonus = (current.expected_score || 0) * (recordType.bonus_percentage / 100);
-            }
-
-            const expected_total_score = (current.expected_converted_score || 0) + expected_confirmed_bonus;
+            const totals = calculateConvertedTotal(
+                current.expected_score || 0,
+                current.expected_medal_score || 0,
+                expectedAlphaScore,
+                recordTypeId,
+                recordTypesMap
+            );
 
             return {
                 ...prev,
                 [regionId]: {
                     ...current,
                     expected_record_type: recordTypeId,
-                    expected_confirmed_bonus,
-                    expected_total_score,
+                    expected_confirmed_bonus: totals.confirmedBonus,
+                    expected_total_score: totals.totalScore,
                 },
             };
         });

@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Save, Pencil, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { mutateJson, toUserErrorMessage } from "@/lib/api-client";
 
 interface ScoreConfigCardProps {
     sports: Sport[];
@@ -48,17 +49,10 @@ export function ScoreConfigCard({ sports: initialSports }: ScoreConfigCardProps)
 
         try {
             for (const [sportId, newScore] of changes) {
-                const res = await fetch(`/api/sports/${sportId}`, {
+                await mutateJson(`/api/sports/${sportId}`, {
                     method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ max_score: newScore }),
+                    body: { max_score: newScore },
                 });
-
-                if (!res.ok) {
-                    const errorData = await res.json();
-                    console.error("Failed to update:", errorData);
-                    throw new Error(`Failed to update ${sportId}`);
-                }
             }
 
             toast.success("모든 변경사항이 저장되었습니다.");
@@ -66,7 +60,7 @@ export function ScoreConfigCard({ sports: initialSports }: ScoreConfigCardProps)
             router.refresh();
         } catch (error) {
             console.error(error);
-            toast.error("저장 중 오류가 발생했습니다.");
+            toast.error(toUserErrorMessage(error, "저장 중 오류가 발생했습니다."));
         } finally {
             setSaving(false);
         }

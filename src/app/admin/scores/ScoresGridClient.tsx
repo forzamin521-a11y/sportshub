@@ -31,13 +31,20 @@ export function ScoresGridClient({ sports, selectedYear }: ScoresGridClientProps
     const searchParams = useSearchParams();
 
     const filteredSports = useMemo(() => {
-        if (!searchTerm) return sports;
-
         const lowerSearch = searchTerm.toLowerCase();
-        return sports.filter(sport =>
-            sport.name.toLowerCase().includes(lowerSearch) ||
-            sport.sub_name?.toLowerCase().includes(lowerSearch)
-        );
+        const searched = !searchTerm
+            ? sports
+            : sports.filter(sport =>
+                sport.name.toLowerCase().includes(lowerSearch) ||
+                sport.sub_name?.toLowerCase().includes(lowerSearch)
+            );
+
+        return [...searched].sort((a, b) => {
+            if (a.unscoredEventCount !== b.unscoredEventCount) {
+                return b.unscoredEventCount - a.unscoredEventCount;
+            }
+            return a.name.localeCompare(b.name, "ko");
+        });
     }, [sports, searchTerm]);
 
     const handleYearChange = (year: string) => {
@@ -86,6 +93,11 @@ export function ScoresGridClient({ sports, selectedYear }: ScoresGridClientProps
                 <>
                     <div className="text-sm text-muted-foreground">
                         총 {filteredSports.length}개 종목
+                        {filteredSports.some((sport) => sport.unscoredEventCount > 0) && (
+                            <span className="ml-2 text-orange-600">
+                                미입력 세부종목이 많은 종목부터 표시됩니다.
+                            </span>
+                        )}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredSports.map((sport) => (
