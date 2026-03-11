@@ -312,3 +312,55 @@ export async function deleteSheetRow(
         throw error;
     }
 }
+
+export async function deleteSheetRows(
+    sheetName: string,
+    rowIndices: number[]
+) {
+    if (!SPREADSHEET_ID) return;
+    if (rowIndices.length === 0) return;
+
+    try {
+        const spreadsheet = await sheets.spreadsheets.get({
+            spreadsheetId: SPREADSHEET_ID,
+        });
+
+        const sheet = spreadsheet.data.sheets?.find(
+            (s) => s.properties?.title === sheetName
+        );
+
+        if (!sheet || sheet.properties?.sheetId === undefined) {
+            throw new Error(`Sheet ${sheetName} not found`);
+        }
+
+        const uniqueSortedIndices = Array.from(new Set(rowIndices)).sort((a, b) => b - a);
+
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            requestBody: {
+                requests: uniqueSortedIndices.map((rowIndex) => {
+                    const actualRowIndex = rowIndex + 2;
+                    return {
+                        deleteDimension: {
+                            range: {
+                                sheetId: sheet.properties!.sheetId!,
+                                dimension: "ROWS",
+                                startIndex: actualRowIndex - 1,
+                                endIndex: actualRowIndex,
+                            },
+                        },
+                    };
+                }),
+            },
+        });
+        clearSheetCache();
+    } catch (error: unknown) {
+        console.error(`Error deleting rows from sheet ${sheetName}:`, error);
+
+        if (isRateLimitError(error)) {
+            throw new Error("Google Sheets API 한도 초과. 1분 후 다시 시도해주세요.");
+        }
+
+        throw error;
+    }
+}

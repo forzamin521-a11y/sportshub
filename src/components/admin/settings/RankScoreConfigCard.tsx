@@ -39,7 +39,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatRankLabel, rankSortValue } from "@/lib/rank-utils";
-import { requestJson, toUserErrorMessage } from "@/lib/api-client";
+import { mutateJson, requestJson, toUserErrorMessage } from "@/lib/api-client";
 
 interface RankScoreConfigCardProps {
     initialConfigs: RankScoreConfig[];
@@ -393,24 +393,19 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
         setSaving(true);
 
         try {
-            const promises = targetEventIds.map(async (eventId) => {
-                const response =
-                fetch("/api/configs/rank-score/bulk", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        sport_event_id: eventId,
-                        scores: bulkScores,
-                    }),
-                });
-                return response;
+            await mutateJson<{
+                message: string;
+                count: number;
+                event_count: number;
+            }, {
+                sport_event_ids: string[];
+                scores: Array<{ rank: number; acquired_score: number; medal_score: number }>;
+            }>("/api/configs/rank-score/bulk", {
+                body: {
+                    sport_event_ids: targetEventIds,
+                    scores: bulkScores,
+                },
             });
-
-            const results = await Promise.all(promises);
-            const firstFailure = results.find(r => !r.ok);
-            if (firstFailure) {
-                throw new Error(await getResponseError(firstFailure, "등록 중 오류가 발생했습니다."));
-            }
 
             // 로컬 상태 즉시 업데이트
             const newConfigs = targetEventIds.flatMap(eventId =>
@@ -424,7 +419,11 @@ export function RankScoreConfigCard({ initialConfigs, sports }: RankScoreConfigC
                     updated_at: new Date().toISOString(),
                 }))
             );
-            setConfigs(prev => [...prev, ...newConfigs]);
+            const targetEventIdSet = new Set(targetEventIds);
+            setConfigs(prev => [
+                ...prev.filter(config => !targetEventIdSet.has(config.sport_event_id)),
+                ...newConfigs,
+            ]);
 
             toast.success(`${targetEventIds.length}개 세부종목에 ${bulkScores.length}개 순위 설정 완료 (총 ${newConfigs.length}개)`);
             setShowBulkDialog(false);

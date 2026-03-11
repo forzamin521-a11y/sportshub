@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getSheetData, updateSheetData } from "@/lib/google-sheets";
+import { batchUpdateSheetData, getSheetData } from "@/lib/google-sheets";
 import { Score, Sport } from "@/types";
 import { parseScore, scoreToRow } from "@/lib/parse-scores";
 import { calculateAlphaScoreFromTotals, calculateConvertedScore, getUniqueEventTotals } from "@/lib/score-calculations";
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update each score with converted_score
-        const updates: Promise<void>[] = [];
+        const updates: { range: string; values: (string | number | boolean)[][] }[] = [];
         const updatedScores: Score[] = [];
 
         for (const score of sportScores) {
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
             const sheetRow = score.rowIndex;
             const range = `A${sheetRow}:AA${sheetRow}`; // AA is the 27th column (match_date)
 
-            updates.push(updateSheetData("scores", range, [updatedRow]));
+            updates.push({ range, values: [updatedRow] });
 
             // Store for response
             updatedScores.push({
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        await Promise.all(updates);
+        await batchUpdateSheetData("scores", updates);
 
         return NextResponse.json({
             message: "환산점수 계산이 완료되었습니다.",

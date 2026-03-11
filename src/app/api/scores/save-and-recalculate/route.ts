@@ -36,6 +36,8 @@ const scoreSaveLocks = (globalThis as typeof globalThis & {
 
 (globalThis as typeof globalThis & { __scoreSaveLocks?: Set<string> }).__scoreSaveLocks = scoreSaveLocks;
 
+const VERIFY_SCORE_WRITES = process.env.VERIFY_GOOGLE_SHEETS_WRITES === "true";
+
 function scoreToRow(score: ScoreWithRow): (string | number)[] {
     return scoreToRowBase(score);
 }
@@ -299,24 +301,27 @@ export async function POST(request: Request) {
 
         await Promise.all(writePromises);
 
-        // 11. Verify write consistency (best-effort)
-        const verifyRawData = await getSheetData(SHEET_NAMES.SCORES);
-        const verifyIds = new Set(
-            verifyRawData
-                .map((row) => parseScoreBase(row))
-                .filter((s) => s.sport_id === sport_id && (s.year ?? DEFAULT_YEAR) === targetYear)
+        // Optional verification for debugging. Keeping this off by default
+        // avoids an extra full-sheet read after every save.
+        if (VERIFY_SCORE_WRITES) {
+            const verifyRawData = await getSheetData(SHEET_NAMES.SCORES);
+            const verifyIds = new Set(
+                verifyRawData
+                    .map((row) => parseScoreBase(row))
+                    .filter((s) => s.sport_id === sport_id && (s.year ?? DEFAULT_YEAR) === targetYear)
+                    .map((s) => s.id)
+            );
+
+            const missingIds = sportScores
                 .map((s) => s.id)
-        );
+                .filter((id) => !verifyIds.has(id));
 
-        const missingIds = sportScores
-            .map((s) => s.id)
-            .filter((id) => !verifyIds.has(id));
-
-        if (missingIds.length > 0) {
-            throw new Error("저장 검증에 실패했습니다. 잠시 후 다시 시도해주세요.");
+            if (missingIds.length > 0) {
+                throw new Error("저장 검증에 실패했습니다. 잠시 후 다시 시도해주세요.");
+            }
         }
 
-        // 12. Build response scores (without internal fields)
+        // 11. Build response scores (without internal fields)
         const responseScores: Score[] = sportScores.map((score) =>
             Object.fromEntries(
                 Object.entries(score).filter(
